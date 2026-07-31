@@ -1,0 +1,32 @@
+default_profile: gemini_default
+profiles:
+  gemini_default:
+    provider: gemini
+    model: gemini-pro-latest
+  chatgpt_default:
+    provider: aliyun
+    model: qwen3.7-max
+    base_url: ${BASE_URL}
+    api_key_envs:
+      - DASHSCOPE_API_KEY
+      - OPENAI_API_KEY
+      - api_key
+    base_url_envs:
+      - OPENAI_BASE_URL
+      - BASE_URL
+      - base_url
+  qwen_default:
+    provider: aliyun
+    model: qwen-max
+    base_url: ${BASE_URL}
+    api_key_envs:
+      - DASHSCOPE_API_KEY
+      - OPENAI_API_KEY
+      - api_key
+    base_url_envs:
+      - OPENAI_BASE_URL
+      - BASE_URL
+      - base_url
+  gemini-test:
+    provider: gemini
+    model: gemini-3.6-flash
