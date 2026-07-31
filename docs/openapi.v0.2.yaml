@@ -1,0 +1,1601 @@
+openapi: 3.0.3
+info:
+  title: fault_assistant_AI Frontend Backend API
+  version: 0.2.0
+  description: |
+    前端开工版接口契约（v0.2）。
+    在 v0.1 基础上补齐前端骨架所需服务：Apps 列表、文件上传、调用记录、结果管理、用户设置、模型管理写接口。
+servers:
+  - url: http://localhost:8000
+    description: Local
+tags:
+  - name: Auth
+  - name: User
+  - name: Apps
+  - name: Uploads
+  - name: Models
+  - name: Sessions
+  - name: Messages
+  - name: Records
+  - name: Skills
+  - name: Tools
+  - name: Artifacts
+security:
+  - bearerAuth: []
+paths:
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: 本地账号密码登录
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: 本地账号注册
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+              required: [username, password]
+      responses:
+        '201':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  username:
+                    type: string
+                  role:
+                    type: string
+                required: [username, role]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: 退出登录
+      responses:
+        '204':
+          description: 退出成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/me:
+    get:
+      tags: [User]
+      summary: 获取当前用户信息
+      responses:
+        '200':
+          description: 当前用户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/me/settings:
+    patch:
+      tags: [User]
+      summary: 更新当前用户设置
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMySettingsRequest'
+      responses:
+        '200':
+          description: 更新后的用户信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /api/me/password:
+    post:
+      tags: [User]
+      summary: 修改当前用户密码
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: 密码修改成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/users:
+    get:
+      tags: [User]
+      summary: 获取用户列表（管理员/超级管理员）
+      responses:
+        '200':
+          description: 用户列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        username: { type: string }
+                        role: { type: string, enum: [super_admin, admin, user] }
+                        is_disabled: { type: boolean }
+                        created_at: { type: string }
+                        updated_at: { type: string }
+                      required: [username, role, is_disabled, created_at, updated_at]
+                required: [items]
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [User]
+      summary: 按权限创建用户（超级管理员可建 admin/user；管理员仅可建 user）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username: { type: string }
+                password: { type: string }
+                role:
+                  type: string
+                  enum: [super_admin, admin, user]
+              required: [username, password]
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  username: { type: string }
+                  role:
+                    type: string
+                    enum: [admin, user]
+                required: [username, role]
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/users/{username}:
+    patch:
+      tags: [User]
+      summary: 更新用户角色或禁用状态（管理员）
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum: [admin, user]
+                is_disabled:
+                  type: boolean
+      responses:
+        '200':
+          description: 更新后用户信息
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [User]
+      summary: 按权限删除用户（超级管理员可删 admin/user；管理员仅可删 user）
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 删除成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/users/{username}/password:
+    post:
+      tags: [User]
+      summary: 按权限重置目标用户密码（超级管理员可重置 admin/user；管理员仅可重置 user）
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                new_password:
+                  type: string
+              required: [new_password]
+      responses:
+        '204':
+          description: 重置成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/apps:
+    get:
+      tags: [Apps]
+      summary: 获取可选智能体应用列表
+      responses:
+        '200':
+          description: 应用列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/App'
+                required: [items]
+
+  /api/uploads:
+    post:
+      tags: [Uploads]
+      summary: 上传文件并返回引用（可绑定 session）
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UploadRequest'
+      responses:
+        '201':
+          description: 上传成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/models/providers:
+    get:
+      tags: [Models]
+      summary: 获取可用模型提供方
+      responses:
+        '200':
+          description: 提供方列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ModelProvider'
+                required: [items]
+  /api/models/profiles:
+    get:
+      tags: [Models]
+      summary: 获取可用模型配置
+      responses:
+        '200':
+          description: profile 列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  default_profile:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ModelProfile'
+                required: [default_profile, items]
+    post:
+      tags: [Models]
+      summary: 新增模型 profile（管理员）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateModelProfileRequest'
+      responses:
+        '201':
+          description: 新增成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelProfile'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/models/profiles/{profile_id}:
+    patch:
+      tags: [Models]
+      summary: 更新模型 profile（管理员）
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateModelProfileRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelProfile'
+    delete:
+      tags: [Models]
+      summary: 删除模型 profile（管理员）
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+      responses:
+        '204':
+          description: 删除成功
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/models/test-connection:
+    post:
+      tags: [Models]
+      summary: 测试模型连接信息（管理员）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestModelConnectionRequest'
+      responses:
+        '200':
+          description: 连通性结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestModelConnectionResponse'
+
+  /api/sessions:
+    get:
+      tags: [Sessions]
+      summary: 获取会话列表（按分组）
+      parameters:
+        - $ref: '#/components/parameters/GroupFilter'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/SortOrder'
+        - $ref: '#/components/parameters/UserIdFilter'
+      responses:
+        '200':
+          description: 分组会话列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionGroupedListResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Sessions]
+      summary: 创建新会话
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/sessions/{session_id}:
+    get:
+      tags: [Sessions]
+      summary: 获取会话详情
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: 会话详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/sessions/{session_id}/control:
+    post:
+      tags: [Sessions]
+      summary: 会话控制（pause/stop/resume/cancel/rerun）
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionControlRequest'
+      responses:
+        '202':
+          description: 控制命令已接收
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionControlResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/sessions/{session_id}/messages:
+    get:
+      tags: [Messages]
+      summary: 获取会话消息历史
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: 消息列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageListResponse'
+    post:
+      tags: [Messages]
+      summary: 发送消息并启动一次运行
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMessageRequest'
+      responses:
+        '202':
+          description: 已进入队列
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateMessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/sessions/{session_id}/records:
+    get:
+      tags: [Records]
+      summary: 获取会话调用记录（支持技能/工具筛选）
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/RecordTypeFilter'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: 调用记录列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordListResponse'
+
+  /api/sessions/{session_id}/events:
+    get:
+      tags: [Messages]
+      summary: 订阅会话事件流（SSE）
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - name: last_event_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 断线重连时使用
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  event: message.delta
+                  data: {"session_id":"sess_1","run_id":"run_1","payload":{"delta":"你好"}}
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/skills:
+    get:
+      tags: [Skills]
+      summary: 获取技能列表
+      responses:
+        '200':
+          description: 技能列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Skill'
+                required: [items]
+    post:
+      tags: [Skills]
+      summary: 新增技能（管理员）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSkillRequest'
+      responses:
+        '201':
+          description: 新增成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Skill'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/skills/{skill_id}:
+    patch:
+      tags: [Skills]
+      summary: 更新技能状态或元信息（管理员）
+      parameters:
+        - $ref: '#/components/parameters/SkillId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSkillRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Skill'
+    delete:
+      tags: [Skills]
+      summary: 删除技能（管理员）
+      parameters:
+        - $ref: '#/components/parameters/SkillId'
+      responses:
+        '204':
+          description: 删除成功
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/skills/{skill_id}/markdown:
+    put:
+      tags: [Skills]
+      summary: 更新技能 Markdown 文档（普通用户可编辑）
+      parameters:
+        - $ref: '#/components/parameters/SkillId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSkillMarkdownRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillMarkdownVersion'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/skills/{skill_id}/markdown/versions:
+    get:
+      tags: [Skills]
+      summary: 获取技能 Markdown 版本历史
+      parameters:
+        - $ref: '#/components/parameters/SkillId'
+      responses:
+        '200':
+          description: 版本列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SkillMarkdownVersion'
+                required: [items]
+
+  /api/tools:
+    get:
+      tags: [Tools]
+      summary: 获取工具列表
+      responses:
+        '200':
+          description: 工具列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tool'
+                required: [items]
+    post:
+      tags: [Tools]
+      summary: 新增工具（管理员）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateToolRequest'
+      responses:
+        '201':
+          description: 新增成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/tools/{tool_id}:
+    patch:
+      tags: [Tools]
+      summary: 更新工具配置（管理员）
+      parameters:
+        - $ref: '#/components/parameters/ToolId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateToolRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool'
+    delete:
+      tags: [Tools]
+      summary: 删除工具（管理员）
+      parameters:
+        - $ref: '#/components/parameters/ToolId'
+      responses:
+        '204':
+          description: 删除成功
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/artifacts:
+    get:
+      tags: [Artifacts]
+      summary: 查询结果产物
+      parameters:
+        - $ref: '#/components/parameters/AppIdFilter'
+        - $ref: '#/components/parameters/SessionIdFilter'
+        - $ref: '#/components/parameters/ArtifactTypeFilter'
+        - $ref: '#/components/parameters/UserIdFilter'
+        - $ref: '#/components/parameters/FromTime'
+        - $ref: '#/components/parameters/ToTime'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: 产物列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactListResponse'
+  /api/artifacts/{artifact_id}:
+    get:
+      tags: [Artifacts]
+      summary: 获取单个产物详情
+      parameters:
+        - $ref: '#/components/parameters/ArtifactId'
+      responses:
+        '200':
+          description: 产物详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Artifact'
+    delete:
+      tags: [Artifacts]
+      summary: 删除产物
+      parameters:
+        - $ref: '#/components/parameters/ArtifactId'
+      responses:
+        '204':
+          description: 删除成功
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/artifacts/{artifact_id}/preview:
+    get:
+      tags: [Artifacts]
+      summary: 获取产物预览信息
+      parameters:
+        - $ref: '#/components/parameters/ArtifactId'
+      responses:
+        '200':
+          description: 预览结果（文本片段或预览 URL）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactPreviewResponse'
+  /api/artifacts/{artifact_id}/download:
+    get:
+      tags: [Artifacts]
+      summary: 下载产物
+      parameters:
+        - $ref: '#/components/parameters/ArtifactId'
+      responses:
+        '302':
+          description: 跳转到下载链接
+  /api/artifacts/archive:
+    post:
+      tags: [Artifacts]
+      summary: 批量归档产物
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchArtifactActionRequest'
+      responses:
+        '200':
+          description: 归档结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchArtifactActionResponse'
+  /api/artifacts/restore:
+    post:
+      tags: [Artifacts]
+      summary: 批量恢复产物
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchArtifactActionRequest'
+      responses:
+        '200':
+          description: 恢复结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchArtifactActionResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    SessionId:
+      name: session_id
+      in: path
+      required: true
+      schema:
+        type: string
+    SkillId:
+      name: skill_id
+      in: path
+      required: true
+      schema:
+        type: string
+    ToolId:
+      name: tool_id
+      in: path
+      required: true
+      schema:
+        type: string
+    ProfileId:
+      name: profile_id
+      in: path
+      required: true
+      schema:
+        type: string
+    ArtifactId:
+      name: artifact_id
+      in: path
+      required: true
+      schema:
+        type: string
+    GroupFilter:
+      name: group
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [running, recent, archived]
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: page_size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    SortBy:
+      name: sort_by
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [created_at, updated_at]
+        default: updated_at
+    SortOrder:
+      name: sort_order
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+    UserIdFilter:
+      name: user_id
+      in: query
+      required: false
+      schema:
+        type: string
+      description: 仅管理员可用
+    AppIdFilter:
+      name: app_id
+      in: query
+      required: false
+      schema:
+        type: string
+    SessionIdFilter:
+      name: session_id
+      in: query
+      required: false
+      schema:
+        type: string
+    ArtifactTypeFilter:
+      name: type
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [markdown, image, json, csv, video, other]
+    RecordTypeFilter:
+      name: record_type
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [all, skills, tools]
+        default: all
+    FromTime:
+      name: from_time
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+    ToTime:
+      name: to_time
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: 未登录或 token 无效
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: FORBIDDEN
+        message:
+          type: string
+          example: 当前用户无权限执行该操作
+        trace_id:
+          type: string
+      required: [code, message]
+
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+      required: [username, password]
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+          example: 7200
+        user:
+          $ref: '#/components/schemas/UserProfile'
+      required: [access_token, token_type, expires_in, user]
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+        display_name:
+          type: string
+      required: [id, username, role]
+
+    UpdateMySettingsRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+        locale:
+          type: string
+          example: zh-CN
+
+    ChangePasswordRequest:
+      type: object
+      properties:
+        old_password:
+          type: string
+          format: password
+        new_password:
+          type: string
+          format: password
+      required: [old_password, new_password]
+
+    App:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        enabled:
+          type: boolean
+        supported_inputs:
+          type: array
+          items:
+            type: string
+      required: [id, name, enabled]
+
+    UploadRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+        session_id:
+          type: string
+      required: [file]
+
+    UploadResponse:
+      type: object
+      properties:
+        artifact_id:
+          type: string
+        file_name:
+          type: string
+        path:
+          type: string
+        size:
+          type: integer
+        mime_type:
+          type: string
+      required: [artifact_id, file_name, path, size, mime_type]
+
+    ModelProvider:
+      type: object
+      properties:
+        id:
+          type: string
+          example: gemini
+        name:
+          type: string
+          example: Gemini
+      required: [id, name]
+
+    ModelProfile:
+      type: object
+      properties:
+        profile:
+          type: string
+          example: gemini_default
+        provider:
+          type: string
+          example: gemini
+        model:
+          type: string
+          example: gemini-1.5-flash
+        visible_to_roles:
+          type: array
+          items:
+            type: string
+            enum: [admin, user]
+      required: [profile, provider, model]
+
+    CreateModelProfileRequest:
+      type: object
+      properties:
+        profile:
+          type: string
+        provider:
+          type: string
+          enum: [gemini, openai, other]
+        model:
+          type: string
+        base_url:
+          type: string
+        visible_to_roles:
+          type: array
+          items:
+            type: string
+            enum: [admin, user]
+      required: [profile, provider, model]
+
+    UpdateModelProfileRequest:
+      type: object
+      properties:
+        model:
+          type: string
+        base_url:
+          type: string
+        visible_to_roles:
+          type: array
+          items:
+            type: string
+            enum: [admin, user]
+        is_default:
+          type: boolean
+
+    TestModelConnectionRequest:
+      type: object
+      properties:
+        provider:
+          type: string
+        model:
+          type: string
+        base_url:
+          type: string
+      required: [provider, model]
+
+    TestModelConnectionResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        latency_ms:
+          type: integer
+        message:
+          type: string
+      required: [ok, message]
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+        owner_id:
+          type: string
+        app_id:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum: [running, paused, completed, failed, cancelled]
+        model_provider:
+          type: string
+        model_profile:
+          type: string
+        model_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, owner_id, app_id, status, model_provider, model_profile, model_name, created_at, updated_at]
+
+    SessionStatistics:
+      type: object
+      properties:
+        message_count:
+          type: integer
+        skill_calls:
+          type: integer
+        tool_calls:
+          type: integer
+        error_count:
+          type: integer
+        duration_ms:
+          type: integer
+        artifact_count:
+          type: integer
+      required: [message_count, skill_calls, tool_calls, error_count, duration_ms, artifact_count]
+
+    SessionDetail:
+      allOf:
+        - $ref: '#/components/schemas/Session'
+        - type: object
+          properties:
+            statistics:
+              $ref: '#/components/schemas/SessionStatistics'
+            last_message_preview:
+              type: string
+
+    SessionGroupedListResponse:
+      type: object
+      properties:
+        running:
+          type: array
+          items:
+            $ref: '#/components/schemas/Session'
+        recent:
+          type: array
+          items:
+            $ref: '#/components/schemas/Session'
+        archived:
+          type: array
+          items:
+            $ref: '#/components/schemas/Session'
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+      required: [running, recent, archived, page, page_size, total]
+
+    CreateSessionRequest:
+      type: object
+      properties:
+        app_id:
+          type: string
+        title:
+          type: string
+        model_provider:
+          type: string
+          enum: [gemini, openai]
+        model_profile:
+          type: string
+        model_name:
+          type: string
+        inputs:
+          type: object
+          additionalProperties: true
+      required: [app_id]
+
+    SessionControlRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [pause, stop, resume, cancel, rerun]
+      required: [action]
+
+    SessionControlResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+        action:
+          type: string
+        accepted:
+          type: boolean
+        status:
+          type: string
+      required: [session_id, action, accepted, status]
+
+    CreateMessageRequest:
+      type: object
+      properties:
+        content:
+          type: string
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttachmentRef'
+      required: [content]
+
+    CreateMessageResponse:
+      type: object
+      properties:
+        message_id:
+          type: string
+        run_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running]
+      required: [message_id, run_id, status]
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        session_id:
+          type: string
+        role:
+          type: string
+          enum: [user, assistant, system, tool]
+        content:
+          type: string
+        model_name:
+          type: string
+        input_tokens:
+          type: integer
+        output_tokens:
+          type: integer
+        total_tokens:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+      required: [id, session_id, role, content, created_at]
+
+    MessageListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+      required: [items, page, page_size, total]
+
+    RecordItem:
+      type: object
+      properties:
+        id:
+          type: string
+        session_id:
+          type: string
+        type:
+          type: string
+          enum: [skill, tool]
+        name:
+          type: string
+        status:
+          type: string
+          enum: [requested, running, success, failed]
+        input_summary:
+          type: string
+        output_summary:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required: [id, session_id, type, name, status, created_at]
+
+    RecordListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecordItem'
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+      required: [items, page, page_size, total]
+
+    AttachmentRef:
+      type: object
+      properties:
+        artifact_id:
+          type: string
+      required: [artifact_id]
+
+    Skill:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+        markdown_path:
+          type: string
+      required: [id, name, enabled]
+
+    CreateSkillRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+      required: [id, name]
+
+    UpdateSkillRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        enabled:
+          type: boolean
+
+    UpdateSkillMarkdownRequest:
+      type: object
+      properties:
+        content:
+          type: string
+        change_note:
+          type: string
+      required: [content]
+
+    SkillMarkdownVersion:
+      type: object
+      properties:
+        skill_id:
+          type: string
+        version_id:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+      required: [skill_id, version_id, updated_at]
+
+    Tool:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+        schema:
+          type: object
+          additionalProperties: true
+      required: [id, name, enabled]
+
+    CreateToolRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        schema:
+          type: object
+          additionalProperties: true
+      required: [name]
+
+    UpdateToolRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        enabled:
+          type: boolean
+        schema:
+          type: object
+          additionalProperties: true
+
+    Artifact:
+      type: object
+      properties:
+        id:
+          type: string
+        session_id:
+          type: string
+        app_id:
+          type: string
+        type:
+          type: string
+          enum: [markdown, image, json, csv, video, other]
+        path:
+          type: string
+        mime_type:
+          type: string
+        size:
+          type: integer
+        checksum:
+          type: string
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required: [id, session_id, type, path, mime_type, size, created_by, created_at]
+
+    ArtifactListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Artifact'
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+      required: [items, page, page_size, total]
+
+    ArtifactPreviewResponse:
+      type: object
+      properties:
+        artifact_id:
+          type: string
+        preview_type:
+          type: string
+          enum: [text, image_url, video_url, not_supported]
+        content:
+          type: string
+        preview_url:
+          type: string
+      required: [artifact_id, preview_type]
+
+    BatchArtifactActionRequest:
+      type: object
+      properties:
+        artifact_ids:
+          type: array
+          items:
+            type: string
+      required: [artifact_ids]
+
+    BatchArtifactActionResponse:
+      type: object
+      properties:
+        success_ids:
+          type: array
+          items:
+            type: string
+        failed:
+          type: array
+          items:
+            type: object
+            properties:
+              artifact_id:
+                type: string
+              reason:
+                type: string
+            required: [artifact_id, reason]
+      required: [success_ids, failed]
