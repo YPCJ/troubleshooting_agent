@@ -1,0 +1,86 @@
+import csv
+import json
+import re
+
+with open('skills/format_transform/reference/standard_log2.csv', 'r', encoding='gbk') as f:
+    reader = csv.reader(f)
+    std_headers = next(reader)
+
+with open('skills/format_transform/target/PACK_12_0058_ss_20250824_100794625.csv', 'r', encoding='utf-8') as f:
+    reader = csv.reader(f)
+    target_headers = next(reader)
+
+mapping = {}
+used_std = set()
+
+manual_map = {
+    '星上时间': '星上时间',
+    '蓄电池1主份测温': '蓄电池A测点1',
+    '蓄电池1备份测温': '蓄电池A测点2',
+    '蓄电池2主份测温': '蓄电池B测点1',
+    '蓄电池2备份测温': '蓄电池B测点2',
+    '蓄电池3主份测温': '蓄电池C测点1',
+    '蓄电池3备份测温': '蓄电池C测点2',
+    '蓄电池4主份测温': '蓄电池D测点1',
+    '蓄电池4备份测温': '蓄电池D测点2',
+    '蓄电池5主份测温': '蓄电池E测点1',
+    '蓄电池5备份测温': '蓄电池E测点2',
+    '蓄电池6主份测温': '蓄电池F测点1',
+    '蓄电池6备份测温': '蓄电池F测点2',
+    '蓄电池7主份测温': '蓄电池G测点1',
+    '蓄电池7备份测温': '蓄电池G测点2',
+    'PPCU测温1': 'PPCU测点',
+    '气瓶测温1': '气瓶测点1',
+    '气瓶测温2': '气瓶测点2',
+    'Ka发射天线测温': 'Ka发射相控阵天线测点',
+    'Ka接收天线测温': 'Ka接收相控阵天线测点',
+    '霍尔推力器': '霍尔推力器测点',
+    '导航增强铷钟测温': '铷钟舱板测点1',
+    '飞轮测温': '反作用力飞轮A测点',
+    'A轴热敏1': '太阳翼A轴SADA测点1',
+    'A轴热敏2': '太阳翼A轴SADA测点2',
+    'B轴热敏1': '太阳翼B轴SADA测点3',
+    'B轴热敏2': '太阳翼B轴SADA测点4',
+    '推进管路测温测温': '电推管路测点1',
+    '导航增强滤波与发射设备测温': '导航信号滤波与发射设备测点',
+    '星敏感器支架1测温': '星敏感器A测点',
+    '星敏感器支架2测温': '星敏感器B测点',
+    '星敏感器支架3测温': '星敏感器C测点',
+}
+
+for th in target_headers:
+    if th in manual_map and manual_map[th] in std_headers:
+        mapping[th] = manual_map[th]
+        used_std.add(manual_map[th])
+        continue
+    
+    # Try exact match
+    if th in std_headers:
+        mapping[th] = th
+        used_std.add(th)
+        continue
+    
+    # Try fuzzy match
+    th_clean = th.replace('SC频段舱外天线', 'S/C相控阵天线')
+    if th_clean in std_headers and th_clean not in used_std:
+        mapping[th] = th_clean
+        used_std.add(th_clean)
+        continue
+
+    # Try matching +y, -y
+    if th.startswith('+y测温') or th.startswith('-y测温'):
+        th_mod = '太阳翼' + th
+        if th_mod in std_headers and th_mod not in used_std:
+            mapping[th] = th_mod
+            used_std.add(th_mod)
+            continue
+            
+    # matching "-Z舱板+X+Y侧补偿测温1" to "NZ舱板PX1测点1"?
+    # PZ = +Z, NZ = -Z, PX = +X, NX = -X
+    
+print("Mapped:", len(mapping), "/", len(target_headers))
+unmapped = [h for h in target_headers if h not in mapping]
+print("Unmapped in target:", unmapped)
+
+with open('skills/format_transform/mapping.json', 'w', encoding='utf-8') as f:
+    json.dump(mapping, f, ensure_ascii=False, indent=2)
