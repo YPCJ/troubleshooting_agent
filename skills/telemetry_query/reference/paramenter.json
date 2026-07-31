@@ -1,0 +1,13 @@
+{
+  "name": "parameter-list",
+  "value": [
+	{"parameter_name":"sat_id",
+"description":"要查询的卫星的编号，必须在enum的可选值列表内选择，严禁出现错字、漏字等现象",
+"enum":["01"]
+},
+	{"parameter_name":"para_name",
+"description":"要查询的遥测参数的名称，必须在enum的可选值列表内选择，严禁出现错字、漏字等现象",
+"enum":["蓄电池A测点1","蓄电池A测点2","蓄电池B测点1","S/C相控阵天线测温点1","S/C相控阵天线测温点2","S/C相控阵天线测温点10"]
+}
+  ]
+}
