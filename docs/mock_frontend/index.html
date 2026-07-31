@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>fault_assistant_AI 前端 Mock</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #111827;
+        --muted: #334155;
+        --text: #e5e7eb;
+        --sub: #94a3b8;
+        --primary: #3b82f6;
+        --ok: #22c55e;
+        --warn: #f59e0b;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        background: #020617;
+        color: var(--text);
+      }
+      .hidden { display: none !important; }
+      .login {
+        height: 100vh; display: grid; place-items: center;
+      }
+      .card {
+        width: 420px; background: var(--panel); border: 1px solid #1f2937; border-radius: 12px; padding: 18px;
+      }
+      .row { display: flex; gap: 8px; align-items: center; }
+      .row.space { justify-content: space-between; }
+      .title { margin: 0 0 8px; font-size: 20px; }
+      .sub { color: var(--sub); font-size: 13px; margin-bottom: 14px; }
+      input, select, textarea, button {
+        background: #0b1220; color: var(--text); border: 1px solid #273449; border-radius: 8px;
+        padding: 8px 10px; font-size: 13px;
+      }
+      input, select, textarea { width: 100%; }
+      button { cursor: pointer; }
+      button.primary { background: var(--primary); border-color: var(--primary); }
+      button.ghost { background: transparent; }
+
+      .layout {
+        display: grid; grid-template-columns: 290px 1fr; height: 100vh;
+      }
+      .left {
+        border-right: 1px solid #1f2937; background: #0b1220; display: flex; flex-direction: column;
+      }
+      .section { padding: 12px; border-bottom: 1px solid #1f2937; }
+      .session-item {
+        padding: 8px; border: 1px solid transparent; border-radius: 8px; margin-bottom: 6px;
+        background: #0f172a; cursor: pointer;
+      }
+      .session-item.active { border-color: #3b82f6; }
+      .tag {
+        display: inline-block; font-size: 11px; border-radius: 999px; padding: 2px 8px; background: #1e293b; color: #cbd5e1;
+      }
+      .nav {
+        margin-top: auto; padding: 12px; border-top: 1px solid #1f2937;
+      }
+      .nav button { width: 100%; text-align: left; margin-bottom: 8px; }
+      .main {
+        display: flex; flex-direction: column;
+      }
+      .topbar {
+        padding: 10px 14px; border-bottom: 1px solid #1f2937; display: flex; align-items: center; justify-content: space-between;
+        background: #0b1220;
+      }
+      .content { padding: 14px; overflow: auto; }
+      .view { display: none; }
+      .view.active { display: block; }
+      .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .session-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 12px; }
+      .session-main { min-width: 0; }
+      .session-sidebar { min-width: 0; }
+      .app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin-top: 10px; }
+      .app-card { border: 1px solid #334155; border-radius: 10px; padding: 12px; background: #0f172a; }
+      .app-icon { font-size: 22px; margin-bottom: 6px; display: inline-block; }
+      .panel {
+        border: 1px solid #1f2937; background: #0b1220; border-radius: 10px; padding: 12px; margin-bottom: 12px;
+      }
+      .list li { margin-bottom: 8px; }
+      .msg { padding: 8px; border-left: 3px solid #334155; background: #0f172a; margin-bottom: 8px; border-radius: 6px; }
+      .msg.user { border-left-color: #3b82f6; }
+      .msg.assistant { border-left-color: #22c55e; }
+      .toast {
+        position: fixed; right: 16px; bottom: 16px; width: 360px; background: #111827; border: 1px solid #334155; border-radius: 10px; padding: 10px;
+      }
+      .muted { color: var(--sub); font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div id="login" class="login">
+      <div class="card">
+        <h1 class="title">fault_assistant_AI</h1>
+        <div class="sub">前端 Mock（登录后进入主工作台）</div>
+        <div style="margin-bottom:10px"><input id="username" value="demo_user" placeholder="用户名" /></div>
+        <div style="margin-bottom:10px"><input id="password" type="password" value="123456" placeholder="密码" /></div>
+        <div style="margin-bottom:12px">
+          <select id="role">
+            <option value="user">普通用户</option>
+            <option value="admin">管理员</option>
+          </select>
+        </div>
+        <button id="btnLogin" class="primary" style="width:100%">登录进入</button>
+      </div>
+    </div>
+
+    <div id="app" class="layout hidden">
+      <aside class="left">
+        <div class="section row space">
+          <strong>会话</strong>
+          <button id="btnNew">+ New</button>
+        </div>
+        <div class="section">
+          <div class="muted">分组逻辑：运行中=running/queued/paused；最近会话=最近完成/失败/取消；已归档=更早历史</div>
+          <div style="height:8px"></div>
+          <div class="muted">运行中</div>
+          <div id="runningSessions"></div>
+          <div class="muted" style="margin-top:10px">最近会话</div>
+          <div id="recentSessions"></div>
+          <div class="muted" style="margin-top:10px">已归档</div>
+          <div id="archivedSessions"></div>
+        </div>
+        <div class="nav">
+          <button data-view="session">当前 Session</button>
+          <button data-view="apps">智能体 / 应用</button>
+          <button data-view="newSession">新建 Session</button>
+          <button data-view="skills">Skills 管理</button>
+          <button data-view="tools">Tools 管理</button>
+          <button data-view="results">结果中心</button>
+          <button data-view="models" id="btnModelNav">模型管理</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <strong id="topTitle">当前 Session</strong>
+            <span class="muted" id="topSub"></span>
+          </div>
+          <div class="row">
+            <button id="btnBackSession" class="ghost">返回当前 Session</button>
+            <span class="tag" id="roleTag"></span>
+          </div>
+        </div>
+        <div class="content">
+          <section id="view-session" class="view active">
+            <div class="panel">
+              <div class="row space">
+                <div>
+                  <strong id="activeSessionName">S-001 故障分析</strong>
+                  <div class="muted">状态：<span id="activeStatus">running</span> · 模型：<span id="activeModel">gemini-1.5-flash</span></div>
+                </div>
+                <div class="row">
+                  <button>暂停（硬暂停）</button>
+                  <button>继续</button>
+                  <button>取消</button>
+                  <button>从头重跑</button>
+                </div>
+              </div>
+            </div>
+            <div class="session-layout">
+              <div class="panel session-main">
+                <strong>问答内容（主体）</strong>
+                <div style="margin-top:8px">
+                  <div class="msg user">用户：分析 07-20 16:50 异常</div>
+                  <div class="msg assistant">助手：开始查询遥测参数并调用 telemetry_query</div>
+                  <div class="msg assistant">[tool.call] data_query(sat_id=01,...)</div>
+                  <div class="msg assistant">[tool.result] 返回 132 条记录</div>
+                </div>
+              </div>
+              <div class="session-sidebar">
+                <div class="panel">
+                  <strong>技能/工具调用记录</strong>
+                  <ul class="list">
+                    <li>[skill] telemetry_query</li>
+                    <li>[tool.call] data_query(...)</li>
+                    <li>[tool.result] 132 条</li>
+                  </ul>
+                </div>
+                <div class="panel">
+                  <strong>输出结果（产物）</strong>
+                  <ul class="list">
+                    <li>故障初步分析_卫星01_20260720_165000.md</li>
+                    <li>telemetry_plot_20260720.png</li>
+                    <li>data_query_01_xxx.json</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="view-apps" class="view">
+            <div class="panel">
+              <strong>智能体 / 应用列表</strong>
+              <div class="muted">一眼看到系统当前可选智能体，点击可进入“新建 Session”并自动带入 App。</div>
+              <div class="app-grid">
+                <div class="app-card" data-app="fault_diagnoses"><span class="app-icon">🛰️</span><div><strong>fault_diagnoses</strong></div><div class="muted">故障分析与诊断</div></div>
+                <div class="app-card" data-app="fault_search"><span class="app-icon">🔎</span><div><strong>fault_search</strong></div><div class="muted">故障检索与定位</div></div>
+                <div class="app-card" data-app="document_write"><span class="app-icon">📝</span><div><strong>document_write</strong></div><div class="muted">报告生成</div></div>
+                <div class="app-card" data-app="log_transform"><span class="app-icon">🧹</span><div><strong>log_transform</strong></div><div class="muted">日志格式转换</div></div>
+              </div>
+            </div>
+          </section>
+
+          <section id="view-newSession" class="view">
+            <div class="panel">
+              <strong>新建 Session</strong>
+              <div class="grid2" style="margin-top:10px">
+                <div>
+                  <label>App 选择</label>
+                  <select id="appSelect">
+                    <option>fault_diagnoses</option>
+                    <option>fault_search</option>
+                    <option>document_write</option>
+                    <option>log_transform</option>
+                  </select>
+                </div>
+                <div>
+                  <label>模型</label>
+                  <select>
+                    <option>gemini_default (gemini-1.5-flash)</option>
+                    <option>chatgpt_default (gpt-4o-mini)</option>
+                  </select>
+                </div>
+              </div>
+              <div style="margin-top:10px">
+                <label>任务输入</label>
+                <textarea rows="4" placeholder="输入任务描述"></textarea>
+              </div>
+              <div class="row" style="margin-top:10px">
+                <input placeholder="可选：文件路径（非必填）" />
+                <button>上传文件（可选）</button>
+              </div>
+              <div style="margin-top:10px">
+                <button class="primary">启动会话</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="view-skills" class="view">
+            <div class="panel">
+              <strong>Skills 管理</strong>
+              <div class="muted">普通用户可编辑 Markdown；管理员可增删启停</div>
+              <div class="grid2" style="margin-top:10px">
+                <div>
+                  <ul class="list">
+                    <li>telemetry_query <span class="tag">enabled</span></li>
+                    <li>figure-plot <span class="tag">enabled</span></li>
+                    <li>document_write <span class="tag">enabled</span></li>
+                  </ul>
+                </div>
+                <div>
+                  <textarea rows="10"># telemetry_query
+用于01号卫星故障数据获取与结构化分析...</textarea>
+                  <div class="row" style="margin-top:8px">
+                    <button class="primary" id="btnSaveSkill">保存新版本</button>
+                    <button>查看历史版本</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="view-tools" class="view">
+            <div class="panel">
+              <div class="row space">
+                <strong>Tools 管理</strong>
+                <div class="row">
+                  <button id="btnAddTool">新增 Tool</button>
+                  <button id="btnDeleteTool">删除 Tool</button>
+                </div>
+              </div>
+              <ul class="list" style="margin-top:10px">
+                <li>bash(command)</li>
+                <li>read_file(path)</li>
+                <li>data_query(sat_id, para_name, start_time, end_time)</li>
+              </ul>
+            </div>
+          </section>
+
+          <section id="view-results" class="view">
+            <div class="panel">
+              <strong>结果中心</strong>
+              <div class="row" style="margin-top:10px">
+                <select><option>全部类型</option><option>Markdown</option><option>Image</option><option>JSON</option></select>
+                <input placeholder="按 Session ID 检索" />
+                <button>搜索</button>
+              </div>
+              <ul class="list" style="margin-top:10px">
+                <li>[MD] 故障初步分析_卫星01_20260720_165000.md（可反查 Session）</li>
+                <li>[PNG] telemetry_plot_20260720.png</li>
+                <li>[JSON] data_query_01_xxx.json</li>
+              </ul>
+            </div>
+          </section>
+
+          <section id="view-models" class="view">
+            <div class="panel">
+              <strong>模型管理（管理员）</strong>
+              <ul class="list" style="margin-top:10px">
+                <li>gemini_default -> gemini / gemini-1.5-flash</li>
+                <li>chatgpt_default -> openai / gpt-4o-mini</li>
+              </ul>
+              <div class="row">
+                <button>新增 Profile</button>
+                <button>连通性测试</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div id="toast" class="toast hidden">
+      <div style="font-weight:600">能力配置已更新</div>
+      <div class="muted" style="margin:6px 0 10px">是否刷新当前会话上下文？</div>
+      <div class="row">
+        <button class="primary">刷新并回到 Session</button>
+        <button id="btnLater">稍后处理</button>
+      </div>
+    </div>
+
+    <script>
+      const views = ["session", "apps", "newSession", "skills", "tools", "results", "models"];
+      let currentView = "session";
+      let currentSession = { id: "sess_001", name: "S-001 故障分析", status: "running", model: "gemini-1.5-flash" };
+      let role = "user";
+
+      const sessions = {
+        running: [{ id: "sess_001", name: "S-001 故障分析", status: "running", updated: "10:58" }],
+        recent: [{ id: "sess_010", name: "S-010 周报生成", status: "completed", updated: "今天 09:21" }],
+        archived: [{ id: "sess_077", name: "S-077 历史回归", status: "completed", updated: "07-18 15:06" }]
+      };
+
+      function renderSessions() {
+        ["running", "recent", "archived"].forEach((g) => {
+          const box = document.getElementById(g + "Sessions");
+          box.innerHTML = "";
+          sessions[g].forEach((s) => {
+            const el = document.createElement("div");
+            el.className = "session-item" + (s.id === currentSession.id ? " active" : "");
+            el.innerHTML = `<div>${s.name}</div><div class="muted">${s.id} · ${s.status} · ${s.updated || ""}</div>`;
+            el.onclick = () => {
+              currentSession = { ...currentSession, ...s };
+              switchView("session");
+            };
+            box.appendChild(el);
+          });
+        });
+      }
+
+      function switchView(v) {
+        currentView = v;
+        views.forEach((name) => {
+          document.getElementById("view-" + name).classList.toggle("active", name === v);
+        });
+        document.getElementById("topTitle").textContent = v === "session" ? "当前 Session" : "管理视图";
+        document.getElementById("topSub").textContent = ` · ${currentSession.name}`;
+        document.getElementById("activeSessionName").textContent = currentSession.name;
+        document.getElementById("activeStatus").textContent = currentSession.status || "running";
+        document.getElementById("activeModel").textContent = currentSession.model || "gemini-1.5-flash";
+        renderSessions();
+      }
+
+      function applyRoleUI() {
+        document.getElementById("roleTag").textContent = role === "admin" ? "管理员" : "普通用户";
+        const isAdmin = role === "admin";
+        document.getElementById("btnModelNav").style.display = isAdmin ? "block" : "none";
+        document.getElementById("btnAddTool").disabled = !isAdmin;
+        document.getElementById("btnDeleteTool").disabled = !isAdmin;
+      }
+
+      document.getElementById("btnLogin").onclick = () => {
+        role = document.getElementById("role").value;
+        document.getElementById("login").classList.add("hidden");
+        document.getElementById("app").classList.remove("hidden");
+        applyRoleUI();
+        switchView("session");
+      };
+
+      document.getElementById("btnNew").onclick = () => switchView("newSession");
+      document.getElementById("btnBackSession").onclick = () => switchView("session");
+      document.querySelectorAll(".nav button[data-view]").forEach((btn) => {
+        btn.onclick = () => switchView(btn.dataset.view);
+      });
+      document.querySelectorAll(".app-card").forEach((card) => {
+        card.onclick = () => {
+          const app = card.dataset.app;
+          const appSelect = document.getElementById("appSelect");
+          if (appSelect) appSelect.value = app;
+          switchView("newSession");
+        };
+      });
+
+      document.getElementById("btnSaveSkill").onclick = () => {
+        document.getElementById("toast").classList.remove("hidden");
+      };
+      document.getElementById("btnLater").onclick = () => {
+        document.getElementById("toast").classList.add("hidden");
+      };
+    </script>
+  </body>
+</html>
