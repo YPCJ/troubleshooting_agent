@@ -1,0 +1,40 @@
+.DS_Store
+
+# Python artifacts
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# IDE / editor
+.idea/
+.vscode/
+.run/
+*.pid
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/
+
+# Runtime / generated outputs
+*.out
+*.log
+*.csv
+*.png
+data/
+dist/
+
+# Generated local analysis reports
+故障初步分析_卫星01_*.md
+
+# Project-generated memory/output artifacts
+apps/**/memory/
+apps/**/output/
+skills/**/output/
+skills/figure-plot/assets/
