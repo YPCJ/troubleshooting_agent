@@ -50,6 +50,20 @@ npm install
 - 前端入口：[frontend/src/main.tsx](/Users/ypcj/GIT/fault_assistant_AI/frontend/src/main.tsx)
 - 主要页面位于 [frontend/src/views/](/Users/ypcj/GIT/fault_assistant_AI/frontend/src/views)
 
+## 环境变量配置
+
+项目根目录下提供了 [.env_template](/Users/ypcj/GIT/fault_assistant_AI/.env_template) 作为模板文件。
+建议按以下方式使用：
+
+```bash
+cp .env_template .env
+```
+
+然后根据你的实际环境填写 `.env` 中的值。
+- 其中敏感项（如 API Key、Token、Secret）请使用你自己的真实值，不要直接提交到 Git
+- URL 类配置可以保留默认值或根据实际地址调整
+- 本仓库已经将 `.env` 设为忽略文件，避免把本地配置泄露到远程仓库
+
 ## 仓库维护说明
 
 请勿将本地密钥、环境变量文件或生成结果提交到版本控制中。
