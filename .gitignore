@@ -31,7 +31,8 @@ data/
 dist/
 
 # Generated local analysis reports
-故障初步分析_卫星01_*.md
+# Ignore root-level reports whose filenames include a date/time suffix
+/故障初步分析_*_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9][0-9].md
 
 # Project-generated memory/output artifacts
 apps/**/memory/
