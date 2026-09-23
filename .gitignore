@@ -20,16 +20,28 @@ __pycache__/
 
 # Frontend build artifacts
 frontend/node_modules/
-frontend/dist/
 
 # Runtime / generated outputs
 *.out
 *.log
 *.csv
 *.png
-data/
-dist/
+/dist/
 offline-packages/
+
+# Keep the built frontend trackable, including future image assets.
+!/frontend/dist/**
+
+# Local account/session/model state and LangGraph checkpoints must not be published.
+/data/auth.sqlite3*
+/data/session.sqlite3*
+/data/model_profiles.sqlite3*
+/data/sbc_langgraph_checkpoints.sqlite3*
+/data/troubleshooting.db*
+# SQLite transient sidecar files (also for otherwise trackable simulation DBs).
+/data/*-wal
+/data/*-shm
+/data/*-journal
 
 # Generated local analysis reports
 # Ignore root-level reports whose filenames include a date/time suffix
