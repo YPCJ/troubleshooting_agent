@@ -1,4 +1,4 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8001'
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 type RequestOptions = RequestInit & {
   token?: string
@@ -9,7 +9,7 @@ export type ApiError = {
   message: string
 }
 
-async function parseErrorMessage(response: Response): Promise<string> {
+export async function parseErrorMessage(response: Response): Promise<string> {
   try {
     const data = (await response.json()) as { message?: string; detail?: string }
     return data.message ?? data.detail ?? `请求失败（${response.status}）`

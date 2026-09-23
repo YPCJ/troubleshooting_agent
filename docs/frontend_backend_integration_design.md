@@ -1,4 +1,4 @@
-# fault_assistant_AI 前端接入后端接口设计（v1）
+# troubleshooting_agent 前端接入后端接口设计（v1）
 
 ## 1. 目标
 
@@ -10,6 +10,8 @@
 - 实时消息流、工具调用轨迹、结果产物管理
 
 本设计用于替代“仅通过 CLI 参数 `--llm` 控制模型”的运行方式，保留 CLI 作为调试入口。
+
+当前后端同时承载两种执行路径：通用 Agent Runtime（`fault_diagnoses_agent` 的 ReAct + 工具循环）与 SBC LangGraph 受控故障树排查（`backend/agents/sbc_network_troubleshooting/`）。后者是产品主体，前者是其运行的底层框架，详见 `docs/sbc_network_troubleshooting_langgraph_design.md`。
 
 ## 2. 关键设计决策
 
@@ -46,60 +48,61 @@
 - `Artifact`
   - `id`, `session_id`, `type`, `path`, `mime_type`, `size`, `checksum`, `created_by`, `created_at`
 
-## 5. API 设计（首期）
+## 5. API 设计（当前实现，对齐 `backend/server.py`）
+
+> 本节内容为 `backend/server.py` 当前实际实现的接口。历史设计与实现已有出入（分组口径、字段名、部分端点未落地等），一律以此为准；完整契约见 `docs/openapi.v0.2.yaml`。
 
 ## 5.1 鉴权与用户
 
-- `POST /api/auth/login`：账号密码登录，返回 token
+- `POST /api/auth/register`：账号密码注册
+- `POST /api/auth/login`：返回 `{access_token, role, expires_at}`
 - `POST /api/auth/logout`
-- `GET /api/me`：当前用户与角色
+- `GET /api/me`：当前用户名与角色
+- `POST /api/me/password`：修改自己的密码
+- `GET /api/users`（管理员）、`POST /api/users`、`PATCH /api/users/{username}`、`DELETE /api/users/{username}`、`POST /api/users/{username}/password`
+
+角色为三级：`super_admin` / `admin` / `user`，而非早期设计的二级角色。
 
 ## 5.2 模型与配置
 
-- `GET /api/models/providers`：可用 provider 列表
-- `GET /api/models/profiles`：可用 profile 列表（含默认值、可见范围）
+- `GET /api/models/providers`：动态返回 provider 注册表中的可用 provider
+- `GET /api/models/profiles`：返回 `{items, default_profile}`
+- `POST /api/models/profiles`、`PATCH /api/models/profiles/{id}`、`DELETE /api/models/profiles/{id}`（管理员）；创建后基础参数不可变，PATCH 仅更新采样参数
+- `POST /api/models/profiles/{id}/default`（管理员，设为默认）
+- `GET /api/models/catalog?provider={provider}&q={keyword}`：通过统一 provider 接口查询可用模型名
+- `GET /api/models/gemini/models`、`GET /api/models/aliyun/models`：保留的兼容接口
+- `POST /api/models/test-connection`：使用入口绑定的指定模型执行最小 Hello world 推理，返回实际内容、耗时和 Token 用量
 
 ## 5.3 Session 生命周期
 
 - `POST /api/sessions`
-  - 入参：`app_id`, `title?`, `model_provider?`, `model_profile?`, `model_name?`, `inputs?`
-  - 行为：创建 Session，若未指定模型则回落系统默认（gemini_default）
-- `GET /api/sessions`：按分组返回（运行中/最近/归档），普通用户仅本人，管理员可全量
-- `GET /api/sessions/{session_id}`
+  - 入参：`app_id`, `model_profile_id?`, `title?`（未指定 `model_profile_id` 时回落系统默认 profile）
+- `GET /api/sessions`：返回 `{active: [...], archived: [...]}` 两组（不是运行中/最近/归档三组），普通用户仅本人，管理员/超管可全量
+- `GET /api/sessions/{session_id}`、`DELETE /api/sessions/{session_id}`
+- `PATCH /api/sessions/{session_id}/archive`、`PATCH /api/sessions/{session_id}/activate`
 - `POST /api/sessions/{session_id}/control`
-  - 入参：`action` in `pause|resume|cancel|rerun`
-  - 规则：`pause` 为硬暂停；`rerun` 为从头重跑
+  - 入参：`action` in `stop|pause|resume|cancel|rerun|archive|activate`
 
 ## 5.4 消息与流式输出
 
+- `GET /api/sessions/{session_id}/messages`：返回该 Session 全部消息
 - `POST /api/sessions/{session_id}/messages`
-  - 入参：`content`, `attachments?`
-  - 返回：`message_id` + `run_id`
-- `GET /api/sessions/{session_id}/events`（SSE）
-  - 按顺序推送：`message.delta`、`tool.call`、`tool.result`、`artifact.created`、`run.done`、`run.error`
-
-SSE 事件示例：
-
-```json
-{
-  "type": "tool.call",
-  "session_id": "sess_xxx",
-  "run_id": "run_xxx",
-  "timestamp": "2026-07-22T11:00:00Z",
-  "payload": {
-    "name": "data_query",
-    "arguments": {"sat_id": "01"}
-  }
-}
-```
+  - 入参：`content`
+- `GET /api/sessions/{session_id}/events`（SSE，鉴权支持 `Authorization` header 或查询参数 `access_token`）
+- `GET /api/sessions/{session_id}/sbc-event-selection`、`POST /api/sessions/{session_id}/sbc-event-selection`
+  - SBC LangGraph 专属：当图在 `interrupt` 节点等待人工从候选异常事件中选择时使用，`POST` 入参 `event_id`
 
 ## 5.5 Skills / Tools / 结果中心
 
 - `GET /api/skills`
-- `PUT /api/skills/{skill_id}/markdown`（普通用户可编辑 md；增删仅管理员）
+- `PATCH /api/skills/{skill_id}`：更新 `markdown` 正文（当前无版本历史、无新增/删除接口）
 - `GET /api/tools`
-- `POST /api/tools` / `DELETE /api/tools/{tool_id}`（管理员）
-- `GET /api/artifacts`（支持按 app/session/type/time/user 检索）
+- `PATCH /api/tools/{tool_name}`：仅支持 `{enabled: bool}` 开关（管理员），无新增/删除工具接口
+- `GET /api/sessions/{session_id}/records?kind=`：会话内技能/工具调用记录
+- `GET /api/sessions/{session_id}/preview?record_id=`：预览某条记录关联的文件/技能内容
+- `GET /api/sessions/{session_id}/artifacts/{artifact_id}/content`：下载/预览产物文件
+- `GET /api/artifacts?session_id=&artifact_type=`：跨会话检索产物列表
+- 未实现：产物的 `DELETE` / 批量归档 (`archive`) / 恢复 (`restore`)
 
 ## 6. 权限规则（接口层强制）
 
@@ -109,7 +112,8 @@ SSE 事件示例：
   - 不可新增/删除 Skill 与 Tool
 - 管理员
   - 可访问全量数据
-  - 可管理用户、Skill、Tool、模型可见性
+  - 当前可管理用户、模型 profile 和 Tool 启停；Skill 仍只有 Markdown 编辑接口
+  - Skill/Tool 新增删除及模型可见性策略属于目标权限，当前没有对应完整接口
 
 ## 7. 与当前代码的衔接方案
 

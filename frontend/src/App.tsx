@@ -6,6 +6,7 @@ import {
   archiveSession,
   adminResetUserPassword,
   createModelProfile,
+  createModelProvider,
   createSession,
   changeMyPassword,
   deleteModelProfile,
@@ -14,27 +15,33 @@ import {
   fetchApps,
   adminCreateUser,
   fetchUsers,
-  fetchAliyunModels,
-  fetchGeminiModels,
+  fetchModelProviders,
+  fetchModelCapabilities,
+  fetchProviderModels,
   fetchModelProfiles,
   fetchMe,
   fetchArtifacts,
   setDefaultModelProfile,
   fetchSessionMessages,
   fetchSessionRecords,
+  fetchSBCEventSelection,
   fetchSessions,
   fetchSkills,
+  fetchTools,
   login,
   register,
   logout,
   sendSessionMessage,
+  selectSBCEvent,
   subscribeSessionEvents,
   stopSession,
+  testModelConnection,
+  updateToolEnabled,
   updateSkillMarkdown,
   updateModelProfile,
   type UserAccount,
 } from './api/service'
-import type { ArtifactItem, ModelProfile, RecordType, Role, SessionGroups, SessionItem, SessionMessage, SessionRecord, SessionStatus, SkillItem, ViewKey } from './types/app'
+import type { ArtifactItem, ModelProfile, RecordType, Role, SBCSelectionRequest, SessionGroups, SessionItem, SessionMessage, SessionRecord, SessionStatus, SkillItem, ToolItem, ViewKey } from './types/app'
 import { Sidebar } from './components/layout/Sidebar'
 import { Topbar } from './components/layout/Topbar'
 import { SessionView } from './views/SessionView'
@@ -59,8 +66,8 @@ function firstSession(groups: SessionGroups): SessionItem | null {
   return groups.active[0] ?? null
 }
 
-const AUTH_STORAGE_KEY = 'fault_assistant_auth_v1'
-const VIEW_STORAGE_KEY = 'fault_assistant_view_v1'
+const AUTH_STORAGE_KEY = 'troubleshooting_agent_auth_v1'
+const VIEW_STORAGE_KEY = 'troubleshooting_agent_view_v1'
 
 type StoredAuth = {
   token: string
@@ -151,8 +158,9 @@ function App() {
   const [modelsLoading, setModelsLoading] = useState(false)
   const [modelsError, setModelsError] = useState('')
   const [providerModelCatalog, setProviderModelCatalog] = useState<string[]>([])
+  const [modelProviders, setModelProviders] = useState<string[]>(['aliyun', 'gemini', 'openai'])
   const [catalogQuery, setCatalogQuery] = useState('')
-  const [catalogProvider, setCatalogProvider] = useState<'aliyun' | 'gemini'>('aliyun')
+  const [catalogProvider, setCatalogProvider] = useState('aliyun')
   const [catalogLoading, setCatalogLoading] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [chatInput, setChatInput] = useState('')
@@ -165,6 +173,9 @@ function App() {
   const [sessionMessages, setSessionMessages] = useState<SessionMessage[]>([])
   const [sessionRecords, setSessionRecords] = useState<SessionRecord[]>([])
   const [sessionArtifacts, setSessionArtifacts] = useState<ArtifactItem[]>([])
+  const [sbcSelectionRequest, setSbcSelectionRequest] = useState<SBCSelectionRequest | null>(null)
+  const currentSessionIdRef = useRef<string | null>(null)
+  currentSessionIdRef.current = currentSession?.id ?? null
   const [sessionLoading, setSessionLoading] = useState(false)
   const [sessionError, setSessionError] = useState('')
   const [recordFilter, setRecordFilter] = useState<'all' | 'skills' | 'tools'>('all')
@@ -175,6 +186,9 @@ function App() {
   const [skillMarkdown, setSkillMarkdown] = useState('')
   const [skillsLoading, setSkillsLoading] = useState(false)
   const [skillsError, setSkillsError] = useState('')
+  const [tools, setTools] = useState<ToolItem[]>([])
+  const [toolsLoading, setToolsLoading] = useState(false)
+  const [toolsError, setToolsError] = useState('')
   const [resultsFilter, setResultsFilter] = useState<'all' | 'doc' | 'image' | 'data'>('all')
   const [resultsSessionId, setResultsSessionId] = useState('')
   const [resultsArtifacts, setResultsArtifacts] = useState<ArtifactItem[]>([])
@@ -233,11 +247,13 @@ function App() {
   }
 
   const loadBootstrap = async (authToken: string) => {
-    const [appsData, sessionsData, skillsData, modelProfilesData] = await Promise.all([
+    const [appsData, sessionsData, skillsData, modelProfilesData, modelProvidersData, toolsData] = await Promise.all([
       fetchApps(authToken),
       fetchSessions(authToken),
       fetchSkills(authToken),
       fetchModelProfiles(authToken),
+      fetchModelProviders(authToken),
+      fetchTools(authToken),
     ])
     setApps(appsData.length ? appsData : mockApps)
     setSessionGroups(sessionsData)
@@ -245,11 +261,13 @@ function App() {
     setCurrentSession(preferredSession)
     setSelectedApp(appsData[0]?.id ?? mockApps[0].id)
     applyModelProfiles(modelProfilesData)
+    if (modelProvidersData.length) setModelProviders(modelProvidersData)
     setSkills(skillsData)
     if (skillsData[0]) {
       setSelectedSkillId(skillsData[0].id)
       setSkillMarkdown(skillsData[0].markdown)
     }
+    setTools(toolsData)
   }
 
   const refreshModelProfiles = async () => {
@@ -268,19 +286,24 @@ function App() {
     if (!silent) setSessionLoading(true)
     setSessionError('')
     try {
-      const [messages, records, artifacts] = await Promise.all([
+      const [messages, records, artifacts, selection] = await Promise.all([
         fetchSessionMessages(authToken, sessionId),
         fetchSessionRecords(authToken, sessionId, nextRecordFilter),
         fetchArtifacts(authToken, { sessionId, type: nextArtifactFilter }),
+        fetchSBCEventSelection(authToken, sessionId),
       ])
+      if (currentSessionIdRef.current !== sessionId) return
       setSessionMessages(messages)
       setSessionRecords(records)
       setSessionArtifacts(artifacts)
+      setSbcSelectionRequest(selection)
     } catch (error) {
+      if (currentSessionIdRef.current !== sessionId) return
       setSessionError(getErrorMessage(error))
       setSessionMessages([])
       setSessionRecords([])
       setSessionArtifacts([])
+      setSbcSelectionRequest(null)
     } finally {
       if (!silent) setSessionLoading(false)
     }
@@ -317,6 +340,18 @@ function App() {
     }
   }
 
+  const refreshTools = async (authToken: string) => {
+    setToolsLoading(true)
+    setToolsError('')
+    try {
+      setTools(await fetchTools(authToken))
+    } catch (error) {
+      setToolsError(getErrorMessage(error))
+    } finally {
+      setToolsLoading(false)
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
     void (async () => {
@@ -348,6 +383,11 @@ function App() {
   }, [])
 
   useEffect(() => {
+    closeEventStream()
+    setIsResponding(false)
+  }, [currentSession?.id])
+
+  useEffect(() => {
     if (!loggedIn || !token || !currentSession) return
     void loadSessionData(token, currentSession.id, recordFilter, artifactFilter)
   }, [loggedIn, token, currentSession, recordFilter, artifactFilter])
@@ -369,14 +409,21 @@ function App() {
     let cancelled = false
     void (async () => {
       setCatalogLoading(true)
+      setProviderModelCatalog([])
       try {
-        const items =
-          catalogProvider === 'gemini'
-            ? await fetchGeminiModels(token, { q: catalogQuery })
-            : await fetchAliyunModels(token, { q: catalogQuery })
-        if (!cancelled) setProviderModelCatalog(items)
+        const items = await fetchProviderModels(token, {
+          provider: catalogProvider,
+          q: catalogQuery,
+        })
+        if (!cancelled) {
+          setProviderModelCatalog(items)
+          setModelsError('')
+        }
       } catch (error) {
-        if (!cancelled) setModelsError(getErrorMessage(error))
+        if (!cancelled) {
+          setProviderModelCatalog([])
+          setModelsError(getErrorMessage(error))
+        }
       } finally {
         if (!cancelled) setCatalogLoading(false)
       }
@@ -391,6 +438,11 @@ function App() {
     void loadUsers(token)
   }, [loggedIn, token, canManageUsers, currentView])
 
+  useEffect(() => {
+    if (!loggedIn || !token || currentView !== 'tools') return
+    void refreshTools(token)
+  }, [loggedIn, token, currentView])
+
   useEffect(() => () => closeEventStream(), [])
 
   useEffect(() => {
@@ -402,6 +454,204 @@ function App() {
       window.clearTimeout(timer)
     }
   }, [topSuccessBanner])
+
+  const subscribeToSessionRun = (
+    sentSessionId: string,
+    runId: string,
+    modelName?: string,
+  ) => {
+    closeEventStream()
+    const upsertMessage = (message: SessionMessage) => {
+      setSessionMessages((prev) => {
+        const idx = prev.findIndex((item) => item.id === message.id)
+        if (idx >= 0) {
+          const next = [...prev]
+          next[idx] = message
+          return next
+        }
+        return [...prev, message]
+      })
+    }
+    const appendLogMessage = (content: string, idSuffix: string) => {
+      const messageId = `evt_${runId}_${idSuffix}`
+      upsertMessage({
+        id: messageId,
+        role: 'assistant',
+        content,
+        kind: 'log',
+      })
+    }
+    eventSourceRef.current = subscribeSessionEvents({
+      token,
+      sessionId: sentSessionId,
+      runId,
+      onEvent: (event) => {
+        if (
+          event.session_id !== sentSessionId ||
+          currentSessionIdRef.current !== sentSessionId
+        ) return
+        if (event.type === 'run.accepted') {
+          appendLogMessage('已接收请求，开始执行。', event.id)
+          return
+        }
+        if (event.type === 'sbc.selection.requested') {
+          setSbcSelectionRequest(event.payload as unknown as SBCSelectionRequest)
+          return
+        }
+        if (event.type === 'sbc.selection.resumed') {
+          setSbcSelectionRequest(null)
+          return
+        }
+        if (event.type === 'message.delta') {
+          const payloadMessage = event.payload.message
+          if (
+            payloadMessage &&
+            typeof payloadMessage === 'object' &&
+            'message_id' in payloadMessage &&
+            'role' in payloadMessage &&
+            'content' in payloadMessage
+          ) {
+            const raw = payloadMessage as {
+              message_id: string
+              role: SessionMessage['role']
+              content: string
+              kind?: SessionMessage['kind']
+              model_profile_id?: string
+              usage?: { total_tokens?: number }
+              round_summary?: { model_calls?: number; total_tokens?: number }
+            }
+            upsertMessage({
+              id: raw.message_id,
+              role: raw.role,
+              content: raw.content,
+              kind: raw.kind ?? 'text',
+              model: raw.model_profile_id,
+              tokens: raw.usage?.total_tokens,
+              roundSummary: raw.round_summary
+                ? {
+                    modelCalls: raw.round_summary.model_calls ?? 0,
+                    totalTokens: raw.round_summary.total_tokens ?? 0,
+                  }
+                : undefined,
+            })
+          }
+          return
+        }
+        if (event.type === 'tool.call') {
+          const toolName = typeof event.payload.name === 'string' ? event.payload.name : 'unknown'
+          appendLogMessage(`[tool call] ${toolName}() requested`, event.id)
+          return
+        }
+        if (event.type === 'tool.result') {
+          const toolName = typeof event.payload.name === 'string' ? event.payload.name : 'unknown'
+          const toolStatus = typeof event.payload.status === 'string' ? event.payload.status : 'ok'
+          appendLogMessage(`[tool result] ${toolName}() => ${toolStatus}`, event.id)
+          return
+        }
+        if (event.type === 'record.created') {
+          const recId = typeof event.payload.record_id === 'string' ? event.payload.record_id : String(event.payload.record_id ?? '')
+          const rawType = typeof event.payload.record_type === 'string' ? event.payload.record_type : 'tool'
+          const recType: RecordType = rawType === 'skill' ? 'skill' : rawType === 'tool' ? 'tool' : 'other'
+          const recLabel = typeof event.payload.label === 'string' ? event.payload.label : ''
+          const sourceKindRaw = typeof event.payload.source_kind === 'string' ? event.payload.source_kind : ''
+          const sourceKind = sourceKindRaw === 'file' || sourceKindRaw === 'skill' || sourceKindRaw === 'other' ? sourceKindRaw : undefined
+          const sourceName = typeof event.payload.source_name === 'string' ? event.payload.source_name : undefined
+          const sourcePath = typeof event.payload.source_path === 'string' ? event.payload.source_path : undefined
+          if (recId) {
+            setSessionRecords((prev) => {
+              if (prev.some((r) => r.id === recId)) return prev
+              return [...prev, { id: recId, type: recType, label: recLabel, sourceKind, sourceName, sourcePath }]
+            })
+          }
+          return
+        }
+        if (event.type === 'artifact.created') {
+          if (
+            typeof event.payload.artifact_id === 'string' &&
+            typeof event.payload.filename === 'string' &&
+            typeof event.payload.path === 'string' &&
+            typeof event.payload.artifact_type === 'string'
+          ) {
+            const artifactId = event.payload.artifact_id
+            const artifactFilename = event.payload.filename
+            const artifactPath = event.payload.path
+            const artifactTypeRaw = event.payload.artifact_type
+            setSessionArtifacts((prev) => {
+              const exists = prev.some((item) => item.id === artifactId)
+              if (exists) return prev
+              return [
+                ...prev,
+                {
+                  id: artifactId,
+                  name: artifactFilename,
+                  path: artifactPath,
+                  artifactType:
+                    artifactTypeRaw === 'document'
+                      ? 'document'
+                      : artifactTypeRaw === 'image'
+                        ? 'image'
+                        : artifactTypeRaw === 'data'
+                          ? 'data'
+                          : 'other',
+                  sessionId: sentSessionId,
+                },
+              ]
+            })
+          }
+          return
+        }
+        if (event.type === 'run.done') {
+          closeEventStream()
+          setIsResponding(false)
+          void refreshSessionsAndKeepSelection(sentSessionId)
+          void loadSessionData(token, sentSessionId, recordFilter, artifactFilter, true)
+          return
+        }
+        if (event.type === 'run.error') {
+          const message = typeof event.payload.message === 'string' ? event.payload.message : '会话执行失败'
+          const messageId =
+            typeof event.payload.message_id === 'string'
+              ? event.payload.message_id
+              : `evt_${runId}_${event.id}`
+          upsertMessage({
+            id: messageId,
+            role: 'assistant',
+            content: message,
+            kind: 'error',
+            model: modelName,
+          })
+          closeEventStream()
+          setIsResponding(false)
+          void loadSessionData(token, sentSessionId, recordFilter, artifactFilter, true)
+        }
+      },
+      onError: (message) => {
+        setSessionError(message)
+        closeEventStream()
+        setIsResponding(false)
+      },
+    })
+  }
+
+  useEffect(() => {
+    if (
+      !loggedIn ||
+      !currentSession ||
+      currentSession.runStatus !== 'running' ||
+      !currentSession.activeRunId
+    ) return
+    setIsResponding(true)
+    subscribeToSessionRun(
+      currentSession.id,
+      currentSession.activeRunId,
+      currentSession.model,
+    )
+  }, [
+    loggedIn,
+    currentSession?.id,
+    currentSession?.runStatus,
+    currentSession?.activeRunId,
+  ])
 
   const handleSendOrStop = async () => {
     if (!currentSession) return
@@ -418,6 +668,7 @@ function App() {
     }
     if (!chatInput.trim()) return
     setIsResponding(true)
+    setSessionError('')
     const nextMessage = chatInput.trim()
     const optimisticId = `local_u_${Date.now()}`
     setSessionMessages((prev) => [...prev, { id: optimisticId, role: 'user', content: nextMessage, kind: 'text' }])
@@ -425,149 +676,44 @@ function App() {
     try {
       const sentSessionId = currentSession.id
       const response = await sendSessionMessage(token, sentSessionId, nextMessage)
-      closeEventStream()
-      const upsertMessage = (message: SessionMessage) => {
-        setSessionMessages((prev) => {
-          const idx = prev.findIndex((item) => item.id === message.id)
-          if (idx >= 0) {
-            const next = [...prev]
-            next[idx] = message
-            return next
-          }
-          return [...prev, message]
-        })
-      }
-      const appendLogMessage = (content: string, idSuffix: string) => {
-        const messageId = `evt_${response.run_id}_${idSuffix}`
-        upsertMessage({
-          id: messageId,
-          role: 'assistant',
-          content,
-          kind: 'log',
-        })
-      }
-      eventSourceRef.current = subscribeSessionEvents({
-        token,
-        sessionId: sentSessionId,
-        runId: response.run_id,
-        onEvent: (event) => {
-          if (event.session_id !== sentSessionId) return
-          if (event.type === 'run.accepted') {
-            appendLogMessage('已接收请求，开始执行。', event.id)
-            return
-          }
-          if (event.type === 'message.delta') {
-            const payloadMessage = event.payload.message
-            if (
-              payloadMessage &&
-              typeof payloadMessage === 'object' &&
-              'message_id' in payloadMessage &&
-              'role' in payloadMessage &&
-              'content' in payloadMessage
-            ) {
-              const raw = payloadMessage as {
-                message_id: string
-                role: SessionMessage['role']
-                content: string
-                kind?: SessionMessage['kind']
-                model_profile_id?: string
-                usage?: { total_tokens?: number }
-              }
-              upsertMessage({
-                id: raw.message_id,
-                role: raw.role,
-                content: raw.content,
-                kind: raw.kind ?? 'text',
-                model: raw.model_profile_id,
-                tokens: raw.usage?.total_tokens,
-              })
-            }
-            return
-          }
-          if (event.type === 'tool.call') {
-            const toolName = typeof event.payload.name === 'string' ? event.payload.name : 'unknown'
-            appendLogMessage(`[tool call] ${toolName}() requested`, event.id)
-            return
-          }
-          if (event.type === 'tool.result') {
-            const toolName = typeof event.payload.name === 'string' ? event.payload.name : 'unknown'
-            const toolStatus = typeof event.payload.status === 'string' ? event.payload.status : 'ok'
-            appendLogMessage(`[tool result] ${toolName}() => ${toolStatus}`, event.id)
-            return
-          }
-          if (event.type === 'record.created') {
-            const recId = typeof event.payload.record_id === 'string' ? event.payload.record_id : String(event.payload.record_id ?? '')
-            const rawType = typeof event.payload.record_type === 'string' ? event.payload.record_type : 'tool'
-            const recType: RecordType = rawType === 'skill' ? 'skill' : rawType === 'tool' ? 'tool' : 'other'
-            const recLabel = typeof event.payload.label === 'string' ? event.payload.label : ''
-            if (recId) {
-              setSessionRecords((prev) => {
-                if (prev.some((r) => r.id === recId)) return prev
-                return [...prev, { id: recId, type: recType, label: recLabel }]
-              })
-            }
-            return
-          }
-          if (event.type === 'artifact.created') {
-            if (
-              typeof event.payload.artifact_id === 'string' &&
-              typeof event.payload.filename === 'string' &&
-              typeof event.payload.path === 'string' &&
-              typeof event.payload.artifact_type === 'string'
-            ) {
-              const artifactId = event.payload.artifact_id
-              const artifactFilename = event.payload.filename
-              const artifactPath = event.payload.path
-              const artifactTypeRaw = event.payload.artifact_type
-              setSessionArtifacts((prev) => {
-                const exists = prev.some((item) => item.id === artifactId)
-                if (exists) return prev
-                return [
-                  ...prev,
-                  {
-                    id: artifactId,
-                    name: artifactFilename,
-                    path: artifactPath,
-                    artifactType:
-                      artifactTypeRaw === 'document'
-                        ? 'document'
-                        : artifactTypeRaw === 'image'
-                          ? 'image'
-                          : artifactTypeRaw === 'data'
-                            ? 'data'
-                            : 'other',
-                    sessionId: sentSessionId,
-                  },
-                ]
-              })
-            }
-            return
-          }
-          if (event.type === 'run.done') {
-            closeEventStream()
-            setIsResponding(false)
-            void refreshSessionsAndKeepSelection(sentSessionId)
-            void loadSessionData(token, sentSessionId, recordFilter, artifactFilter, true)
-            return
-          }
-          if (event.type === 'run.error') {
-            const message = typeof event.payload.message === 'string' ? event.payload.message : '会话执行失败'
-            setSessionError(message)
-            closeEventStream()
-            setIsResponding(false)
-            void loadSessionData(token, sentSessionId, recordFilter, artifactFilter, true)
-            return
-          }
-        },
-        onError: (message) => {
-          setSessionError(message)
-          closeEventStream()
-          setIsResponding(false)
-        },
-      })
+      subscribeToSessionRun(sentSessionId, response.run_id, currentSession.model)
     } catch (error) {
       setSessionError(getErrorMessage(error))
       setIsResponding(false)
+    }
+  }
+
+  const handleSelectSBCEvent = async (eventId: string) => {
+    if (!currentSession || isResponding) return
+    setIsResponding(true)
+    setSessionError('')
+    const content = `选择中断事件 ${eventId} 继续排查`
+    setSessionMessages((prev) => [
+      ...prev,
+      {
+        id: `local_u_${Date.now()}`,
+        role: 'user',
+        content,
+        kind: 'text',
+      },
+    ])
+    try {
+      const sentSessionId = currentSession.id
+      const response = await selectSBCEvent(token, sentSessionId, eventId)
+      if (currentSessionIdRef.current !== sentSessionId) return
+      setSbcSelectionRequest(null)
+      subscribeToSessionRun(sentSessionId, response.run_id, currentSession.model)
+    } catch (error) {
+      if (currentSessionIdRef.current !== currentSession.id) return
+      setSessionError(getErrorMessage(error))
+      setIsResponding(false)
+      void loadSessionData(
+        token,
+        currentSession.id,
+        recordFilter,
+        artifactFilter,
+        true,
+      )
     }
   }
 
@@ -624,6 +770,8 @@ function App() {
     setPassword('')
     setRegisterPassword('')
     setRegisterConfirmPassword('')
+    setTools([])
+    setToolsError('')
     setUsers([])
     setUsersError('')
     setTopSuccessBanner('')
@@ -683,7 +831,7 @@ function App() {
       {!loggedIn && (
         <div className="login">
           <div className="card">
-            <h1 className="title">fault_assistant_AI</h1>
+            <h1 className="title">troubleshooting_agent</h1>
             <p className="sub">前端联调版（API）</p>
             {restoringAuth && <div className="muted">正在恢复登录状态...</div>}
             {!restoringAuth && (
@@ -781,6 +929,7 @@ function App() {
           <Sidebar
             sessions={sessionGroups}
             currentSession={sessionForLayout}
+            currentView={currentView}
             onSelectSession={(session) => {
               if (session.status !== 'active') return
               setCurrentSession(session)
@@ -825,11 +974,14 @@ function App() {
             <div className={`content ${currentView === 'session' ? 'sessionContent' : ''}`}>
               {currentView === 'session' && currentSession && (
                 <SessionView
+                  token={token}
                   currentSession={currentSession}
                   statusText={statusText}
                   copiedText={copiedText}
                   onCopy={handleCopy}
                   messages={sessionMessages}
+                  sbcSelectionRequest={sbcSelectionRequest}
+                  onSelectSBCEvent={(eventId) => void handleSelectSBCEvent(eventId)}
                   records={sessionRecords}
                   artifacts={sessionArtifacts}
                   recordFilter={recordFilter}
@@ -932,9 +1084,32 @@ function App() {
                   error={skillsError}
                 />
               )}
-              {currentView === 'tools' && <ToolsView role={role} />}
+              {currentView === 'tools' && (
+                <ToolsView
+                  role={role}
+                  tools={tools}
+                  loading={toolsLoading}
+                  error={toolsError}
+                  onToggleEnabled={(tool, enabled) => {
+                    if (!(role === 'admin' || role === 'super_admin')) return
+                    void (async () => {
+                      setToolsError('')
+                      const snapshot = tools
+                      setTools((prev) => prev.map((item) => (item.name === tool.name ? { ...item, enabled } : item)))
+                      try {
+                        const updated = await updateToolEnabled(token, tool.name, enabled)
+                        setTools((prev) => prev.map((item) => (item.name === updated.name ? updated : item)))
+                      } catch (error) {
+                        setTools(snapshot)
+                        setToolsError(getErrorMessage(error))
+                      }
+                    })()
+                  }}
+                />
+              )}
               {currentView === 'results' && (
                 <ResultsView
+                  token={token}
                   artifacts={resultsArtifacts}
                   filter={resultsFilter}
                   searchSessionId={resultsSessionId}
@@ -950,6 +1125,14 @@ function App() {
                   profiles={modelProfiles}
                   defaultProfileId={defaultModelProfileId}
                   providerModels={providerModelCatalog}
+                  providers={modelProviders}
+                  onCreateProvider={async (payload) => {
+                    await createModelProvider(token, payload)
+                    const latest = await fetchModelProviders(token)
+                    setModelProviders(latest)
+                    setCatalogProvider(payload.id.trim().toLowerCase())
+                    setTopSuccessBanner('服务商连接创建成功')
+                  }}
                   catalogQuery={catalogQuery}
                   onCatalogProviderChange={setCatalogProvider}
                   onCatalogQueryChange={setCatalogQuery}
@@ -962,9 +1145,9 @@ function App() {
                       setModelsError('')
                       try {
                         await updateModelProfile(token, payload.profileId, {
-                          modelName: payload.modelName,
-                          provider: payload.provider,
-                          baseUrl: payload.baseUrl,
+                          samplingMode: payload.samplingMode,
+                          outputMode: payload.outputMode,
+                          verbosity: payload.verbosity,
                           temperature: payload.temperature,
                           topP: payload.topP,
                           topK: payload.topK,
@@ -989,6 +1172,9 @@ function App() {
                           provider: payload.provider,
                           modelName: payload.modelName,
                           baseUrl: payload.baseUrl,
+                          samplingMode: payload.samplingMode,
+                          outputMode: payload.outputMode,
+                          verbosity: payload.verbosity,
                           temperature: payload.temperature,
                           topP: payload.topP,
                           topK: payload.topK,
@@ -1004,6 +1190,8 @@ function App() {
                       }
                     })()
                   }}
+                  onTestConnection={(payload) => testModelConnection(token, payload)}
+                  onGetCapabilities={(payload) => fetchModelCapabilities(token, payload)}
                   onSetDefault={(profileId) => {
                     void (async () => {
                       setModelsLoading(true)

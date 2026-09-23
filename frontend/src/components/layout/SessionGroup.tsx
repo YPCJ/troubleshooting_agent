@@ -1,35 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { SessionItem } from '../../types/app'
-
-function ArchiveIcon() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true">
-      <rect x="3" y="4" width="14" height="4" rx="1.2" />
-      <rect x="4" y="8" width="12" height="8" rx="1.2" />
-      <path d="M8 11h4" />
-    </svg>
-  )
-}
-
-function ActivateIcon() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true">
-      <path d="M10 3v8" />
-      <path d="M7 6l3-3l3 3" />
-      <rect x="4" y="12" width="12" height="4" rx="1.2" />
-    </svg>
-  )
-}
-
-function DeleteIcon() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true">
-      <path d="M4 6h12" />
-      <path d="M7 6V4h6v2" />
-      <rect x="6" y="6" width="8" height="10" rx="1.2" />
-    </svg>
-  )
-}
 
 export function SessionGroup({
   title,
@@ -49,6 +19,20 @@ export function SessionGroup({
   onDelete: (item: SessionItem) => void
 }) {
   const [deleteTarget, setDeleteTarget] = useState<SessionItem | null>(null)
+  const [menuTarget, setMenuTarget] = useState<SessionItem | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (!menuRef.current) return
+      if (!menuRef.current.contains(event.target as Node)) {
+        setMenuTarget(null)
+      }
+    }
+
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [])
 
   return (
     <div className="group">
@@ -87,38 +71,61 @@ export function SessionGroup({
               {s.id} · {s.status} · {s.updated}
             </div>
           </button>
-          <div className="sessionItemActions">
-            {s.status === 'active' && (
-              <button
-                type="button"
-                className="iconTinyBtn"
-                title="归档"
-                aria-label="归档"
-                onClick={() => onArchive(s)}
-              >
-                <ArchiveIcon />
-              </button>
-            )}
-            {s.status === 'archived' && (
-              <button
-                type="button"
-                className="iconTinyBtn"
-                title="转为活跃"
-                aria-label="转为活跃"
-                onClick={() => onActivate(s)}
-              >
-                <ActivateIcon />
-              </button>
-            )}
+          <div
+            className="sessionItemActions"
+            ref={(el) => {
+              if (menuTarget?.id === s.id) {
+                menuRef.current = el
+              }
+            }}
+          >
             <button
               type="button"
-              className="iconTinyBtn dangerBtn"
-              title="删除"
-              aria-label="删除"
-              onClick={() => setDeleteTarget(s)}
+              className="iconTinyBtn sessionMenuBtn"
+              title="更多操作"
+              aria-label="更多操作"
+              aria-expanded={menuTarget?.id === s.id}
+              onClick={() => setMenuTarget((current) => (current?.id === s.id ? null : s))}
             >
-              <DeleteIcon />
+              ⋮
             </button>
+            {menuTarget?.id === s.id && (
+              <div className="sessionMenu">
+                {s.status === 'active' ? (
+                  <button
+                    type="button"
+                    className="sessionMenuItem"
+                    onClick={() => {
+                      setMenuTarget(null)
+                      onArchive(s)
+                    }}
+                  >
+                    归档
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="sessionMenuItem"
+                    onClick={() => {
+                      setMenuTarget(null)
+                      onActivate(s)
+                    }}
+                  >
+                    转为活跃
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="sessionMenuItem dangerBtn"
+                  onClick={() => {
+                    setMenuTarget(null)
+                    setDeleteTarget(s)
+                  }}
+                >
+                  删除
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ))}

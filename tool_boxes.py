@@ -1,9 +1,18 @@
 from pathlib import Path
+import threading
 
 
 class TodoManager:
     def __init__(self):
-        self.items = []
+        self._local = threading.local()
+
+    @property
+    def items(self) -> list:
+        return getattr(self._local, "items", [])
+
+    @items.setter
+    def items(self, value: list) -> None:
+        self._local.items = value
 
     def update(self, items: list) -> str:
         if len(items) > 20:

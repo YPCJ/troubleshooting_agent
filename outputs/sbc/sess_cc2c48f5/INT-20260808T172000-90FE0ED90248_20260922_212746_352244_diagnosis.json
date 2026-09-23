@@ -1,0 +1,2389 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-09-22T21:27:46+08:00",
+  "session_id": "sess_cc2c48f5",
+  "selected_event": {
+    "event_id": "INT-20260808T172000-90FE0ED90248",
+    "interruption_start_bdt": "2026-08-08 17:20:00.000",
+    "interruption_end_bdt": "2026-08-08 19:10:00.000",
+    "duration_seconds": 6600.0,
+    "satellites": [
+      "A0504"
+    ],
+    "satellite_count": 1,
+    "pattern": "single_sat_long",
+    "landing_satellites": [
+      "A0105",
+      "A0107",
+      "A0110",
+      "A0201",
+      "A0202",
+      "A0204",
+      "A0208",
+      "A0209",
+      "A0402",
+      "A0403",
+      "A0406",
+      "A0407",
+      "A0408",
+      "A0409",
+      "A0410",
+      "A0505",
+      "A0506",
+      "A0507",
+      "A0509"
+    ],
+    "investigation_order": [
+      "A0504"
+    ]
+  },
+  "status": "completed",
+  "fault_window": {
+    "start": "2026-08-08 17:20:00.000",
+    "end": "2026-08-08 19:10:00.000"
+  },
+  "affected_objects": [
+    "A0504"
+  ],
+  "fault_tree_branch": [
+    {
+      "tree_node_id": "A",
+      "node_type": "classification",
+      "decision": "selected_interruption_event",
+      "evidence_ids": [
+        "ev-0001"
+      ],
+      "next_node_id": "B",
+      "label": "通过保活时间统计识别XX时间内存在中断异常"
+    },
+    {
+      "tree_node_id": "B",
+      "node_type": "classification",
+      "decision": "single_sat_long",
+      "evidence_ids": [],
+      "next_node_id": "C1",
+      "label": "异常对象判断"
+    },
+    {
+      "tree_node_id": "C1",
+      "node_type": "classification",
+      "decision": "single_sat_long",
+      "evidence_ids": [],
+      "next_node_id": "D2",
+      "label": "初筛：总结规律"
+    },
+    {
+      "tree_node_id": "D2",
+      "node_type": "classification",
+      "decision": "定性为节点问题",
+      "evidence_ids": [],
+      "next_node_id": "E2",
+      "label": "定性为节点问题"
+    },
+    {
+      "tree_node_id": "E2",
+      "node_type": "breakpoint",
+      "decision": "path_missing",
+      "evidence_ids": [
+        "ev-0002"
+      ],
+      "next_node_id": "F4",
+      "label": "破局点：确认拓扑查询结果有无落地路径"
+    },
+    {
+      "tree_node_id": "F4",
+      "node_type": "breakpoint",
+      "decision": "abnormal",
+      "evidence_ids": [
+        "ev-0003"
+      ],
+      "next_node_id": "H6",
+      "label": "破局点：排查邻居链路激光锁定状态是否正常"
+    },
+    {
+      "tree_node_id": "H6",
+      "node_type": "boundary",
+      "decision": "定界激光问题",
+      "evidence_ids": [],
+      "next_node_id": "I5",
+      "label": "定界激光问题"
+    },
+    {
+      "tree_node_id": "I5",
+      "node_type": "conclusion",
+      "decision": "激光链路中断",
+      "evidence_ids": [],
+      "next_node_id": null,
+      "label": "激光链路中断"
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev-0001",
+      "tree_node_id": "A",
+      "tool_name": "keep_alive_query",
+      "query_args": {
+        "start_time": "2026-08-08 00:00:00",
+        "end_time": "2026-08-09 00:00:00",
+        "limit": 1000
+      },
+      "result": {
+        "status": "ok",
+        "anomaly": true,
+        "affected_objects": [
+          "A0101",
+          "A0102",
+          "A0103",
+          "A0104",
+          "A0105",
+          "A0106",
+          "A0107",
+          "A0108",
+          "A0109",
+          "A0110",
+          "A0201",
+          "A0202",
+          "A0203",
+          "A0204",
+          "A0205",
+          "A0206",
+          "A0207",
+          "A0208",
+          "A0209",
+          "A0210",
+          "A0301",
+          "A0302",
+          "A0303",
+          "A0304",
+          "A0305",
+          "A0306",
+          "A0307",
+          "A0308",
+          "A0309",
+          "A0310",
+          "A0401",
+          "A0402",
+          "A0403",
+          "A0404",
+          "A0405",
+          "A0406",
+          "A0407",
+          "A0408",
+          "A0409",
+          "A0410",
+          "A0501",
+          "A0502",
+          "A0503",
+          "A0504",
+          "A0505",
+          "A0506",
+          "A0507",
+          "A0508",
+          "A0509",
+          "A0510",
+          "A0601",
+          "A0602",
+          "A0603",
+          "A0604",
+          "A0605",
+          "A0606",
+          "A0607",
+          "A0608",
+          "A0609",
+          "A0610"
+        ],
+        "pattern": "multiple_sat_network",
+        "classification": {
+          "pattern": "multiple_sat_network"
+        },
+        "data": [
+          {
+            "keepalive_id": 1,
+            "satellite_id": "A0101",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 4,
+            "satellite_id": "A0102",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 7,
+            "satellite_id": "A0103",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 10,
+            "satellite_id": "A0104",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 13,
+            "satellite_id": "A0105",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 16,
+            "satellite_id": "A0106",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 19,
+            "satellite_id": "A0107",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 22,
+            "satellite_id": "A0108",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 25,
+            "satellite_id": "A0109",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 28,
+            "satellite_id": "A0110",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 31,
+            "satellite_id": "A0201",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 34,
+            "satellite_id": "A0202",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 37,
+            "satellite_id": "A0203",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 40,
+            "satellite_id": "A0204",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 43,
+            "satellite_id": "A0205",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 46,
+            "satellite_id": "A0206",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 49,
+            "satellite_id": "A0207",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 52,
+            "satellite_id": "A0208",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 55,
+            "satellite_id": "A0209",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 58,
+            "satellite_id": "A0210",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 61,
+            "satellite_id": "A0301",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 64,
+            "satellite_id": "A0302",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 67,
+            "satellite_id": "A0303",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 70,
+            "satellite_id": "A0304",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 73,
+            "satellite_id": "A0305",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 76,
+            "satellite_id": "A0306",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 79,
+            "satellite_id": "A0307",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 82,
+            "satellite_id": "A0308",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 85,
+            "satellite_id": "A0309",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 88,
+            "satellite_id": "A0310",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 91,
+            "satellite_id": "A0401",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 93,
+            "satellite_id": "A0402",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 95,
+            "satellite_id": "A0403",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 97,
+            "satellite_id": "A0404",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 99,
+            "satellite_id": "A0405",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 101,
+            "satellite_id": "A0406",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 104,
+            "satellite_id": "A0407",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 106,
+            "satellite_id": "A0408",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 108,
+            "satellite_id": "A0409",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 110,
+            "satellite_id": "A0410",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 112,
+            "satellite_id": "A0501",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 114,
+            "satellite_id": "A0502",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 116,
+            "satellite_id": "A0503",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 118,
+            "satellite_id": "A0504",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 17:20:00.000"
+          },
+          {
+            "keepalive_id": 121,
+            "satellite_id": "A0505",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 123,
+            "satellite_id": "A0506",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 126,
+            "satellite_id": "A0507",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 128,
+            "satellite_id": "A0508",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 130,
+            "satellite_id": "A0509",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 132,
+            "satellite_id": "A0510",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 134,
+            "satellite_id": "A0601",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 136,
+            "satellite_id": "A0602",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 138,
+            "satellite_id": "A0603",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 12:00:00.000"
+          },
+          {
+            "keepalive_id": 143,
+            "satellite_id": "A0604",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 145,
+            "satellite_id": "A0605",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 147,
+            "satellite_id": "A0606",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 18:00:00.000"
+          },
+          {
+            "keepalive_id": 150,
+            "satellite_id": "A0607",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 152,
+            "satellite_id": "A0608",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 154,
+            "satellite_id": "A0609",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 156,
+            "satellite_id": "A0610",
+            "keepalive_start_bdt": "2026-08-08 00:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 139,
+            "satellite_id": "A0603",
+            "keepalive_start_bdt": "2026-08-08 12:13:54.100",
+            "keepalive_end_bdt": "2026-08-08 12:36:05.090"
+          },
+          {
+            "keepalive_id": 140,
+            "satellite_id": "A0603",
+            "keepalive_start_bdt": "2026-08-08 14:26:22.331",
+            "keepalive_end_bdt": "2026-08-08 14:43:25.492"
+          },
+          {
+            "keepalive_id": 141,
+            "satellite_id": "A0603",
+            "keepalive_start_bdt": "2026-08-08 15:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 119,
+            "satellite_id": "A0504",
+            "keepalive_start_bdt": "2026-08-08 19:10:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 2,
+            "satellite_id": "A0101",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 5,
+            "satellite_id": "A0102",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 8,
+            "satellite_id": "A0103",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 11,
+            "satellite_id": "A0104",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 14,
+            "satellite_id": "A0105",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 17,
+            "satellite_id": "A0106",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 20,
+            "satellite_id": "A0107",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 23,
+            "satellite_id": "A0108",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 26,
+            "satellite_id": "A0109",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 29,
+            "satellite_id": "A0110",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 32,
+            "satellite_id": "A0201",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 35,
+            "satellite_id": "A0202",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 38,
+            "satellite_id": "A0203",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 41,
+            "satellite_id": "A0204",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 44,
+            "satellite_id": "A0205",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 47,
+            "satellite_id": "A0206",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 50,
+            "satellite_id": "A0207",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 53,
+            "satellite_id": "A0208",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 56,
+            "satellite_id": "A0209",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 59,
+            "satellite_id": "A0210",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 62,
+            "satellite_id": "A0301",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 65,
+            "satellite_id": "A0302",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 68,
+            "satellite_id": "A0303",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 71,
+            "satellite_id": "A0304",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 74,
+            "satellite_id": "A0305",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 77,
+            "satellite_id": "A0306",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 80,
+            "satellite_id": "A0307",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 83,
+            "satellite_id": "A0308",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 86,
+            "satellite_id": "A0309",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 89,
+            "satellite_id": "A0310",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 102,
+            "satellite_id": "A0406",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 124,
+            "satellite_id": "A0506",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 148,
+            "satellite_id": "A0606",
+            "keepalive_start_bdt": "2026-08-08 20:00:00.000",
+            "keepalive_end_bdt": "2026-08-08 23:14:50.930"
+          },
+          {
+            "keepalive_id": 3,
+            "satellite_id": "A0101",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 6,
+            "satellite_id": "A0102",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 9,
+            "satellite_id": "A0103",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 12,
+            "satellite_id": "A0104",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 15,
+            "satellite_id": "A0105",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 18,
+            "satellite_id": "A0106",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 21,
+            "satellite_id": "A0107",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 24,
+            "satellite_id": "A0108",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 27,
+            "satellite_id": "A0109",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 30,
+            "satellite_id": "A0110",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 33,
+            "satellite_id": "A0201",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 36,
+            "satellite_id": "A0202",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 39,
+            "satellite_id": "A0203",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 42,
+            "satellite_id": "A0204",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 45,
+            "satellite_id": "A0205",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 48,
+            "satellite_id": "A0206",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 51,
+            "satellite_id": "A0207",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 54,
+            "satellite_id": "A0208",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 57,
+            "satellite_id": "A0209",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 60,
+            "satellite_id": "A0210",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 63,
+            "satellite_id": "A0301",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 66,
+            "satellite_id": "A0302",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 69,
+            "satellite_id": "A0303",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 72,
+            "satellite_id": "A0304",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 75,
+            "satellite_id": "A0305",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 78,
+            "satellite_id": "A0306",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 81,
+            "satellite_id": "A0307",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 84,
+            "satellite_id": "A0308",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 87,
+            "satellite_id": "A0309",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 90,
+            "satellite_id": "A0310",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 92,
+            "satellite_id": "A0401",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 94,
+            "satellite_id": "A0402",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 96,
+            "satellite_id": "A0403",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 98,
+            "satellite_id": "A0404",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 100,
+            "satellite_id": "A0405",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 103,
+            "satellite_id": "A0406",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 105,
+            "satellite_id": "A0407",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 107,
+            "satellite_id": "A0408",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 109,
+            "satellite_id": "A0409",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 111,
+            "satellite_id": "A0410",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 113,
+            "satellite_id": "A0501",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 115,
+            "satellite_id": "A0502",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 117,
+            "satellite_id": "A0503",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 120,
+            "satellite_id": "A0504",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 122,
+            "satellite_id": "A0505",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 125,
+            "satellite_id": "A0506",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 127,
+            "satellite_id": "A0507",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 129,
+            "satellite_id": "A0508",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 131,
+            "satellite_id": "A0509",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 133,
+            "satellite_id": "A0510",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 135,
+            "satellite_id": "A0601",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 137,
+            "satellite_id": "A0602",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 142,
+            "satellite_id": "A0603",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 144,
+            "satellite_id": "A0604",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 146,
+            "satellite_id": "A0605",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 149,
+            "satellite_id": "A0606",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 151,
+            "satellite_id": "A0607",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 153,
+            "satellite_id": "A0608",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 155,
+            "satellite_id": "A0609",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          },
+          {
+            "keepalive_id": 157,
+            "satellite_id": "A0610",
+            "keepalive_start_bdt": "2026-08-08 23:30:37.516",
+            "keepalive_end_bdt": "2026-08-09 00:00:00.000"
+          }
+        ],
+        "interruptions": [
+          {
+            "satellite_id": "A0603",
+            "interruption_start_bdt": "2026-08-08 12:00:00.000",
+            "interruption_end_bdt": "2026-08-08 12:13:54.100",
+            "interruption_seconds": 834.1
+          },
+          {
+            "satellite_id": "A0603",
+            "interruption_start_bdt": "2026-08-08 12:36:05.090",
+            "interruption_end_bdt": "2026-08-08 14:26:22.331",
+            "interruption_seconds": 6617.241
+          },
+          {
+            "satellite_id": "A0603",
+            "interruption_start_bdt": "2026-08-08 14:43:25.492",
+            "interruption_end_bdt": "2026-08-08 15:00:00.000",
+            "interruption_seconds": 994.508
+          },
+          {
+            "satellite_id": "A0504",
+            "interruption_start_bdt": "2026-08-08 17:20:00.000",
+            "interruption_end_bdt": "2026-08-08 19:10:00.000",
+            "interruption_seconds": 6600.0
+          },
+          {
+            "satellite_id": "A0101",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0102",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0103",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0104",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0105",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0106",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0107",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0108",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0109",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0110",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0201",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0202",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0203",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0204",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0205",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0206",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0207",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0208",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0209",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0210",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0301",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0302",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0303",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0304",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0305",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0306",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0307",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0308",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0309",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0310",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0406",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0506",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0606",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0
+          },
+          {
+            "satellite_id": "A0101",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0102",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0103",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0104",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0105",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0106",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0107",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0108",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0109",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0110",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0201",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0202",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0203",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0204",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0205",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0206",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0207",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0208",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0209",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0210",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0301",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0302",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0303",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0304",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0305",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0306",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0307",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0308",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0309",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0310",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0401",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0402",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0403",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0404",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0405",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0406",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0407",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0408",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0409",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0410",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0501",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0502",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0503",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0504",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0505",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0506",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0507",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0508",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0509",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0510",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0601",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0602",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0603",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0604",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0605",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0606",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0607",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0608",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0609",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          },
+          {
+            "satellite_id": "A0610",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586
+          }
+        ],
+        "interruption_groups": [
+          {
+            "interruption_start_bdt": "2026-08-08 12:00:00.000",
+            "interruption_end_bdt": "2026-08-08 12:13:54.100",
+            "interruption_seconds": 834.1,
+            "satellites": [
+              "A0603"
+            ],
+            "investigation_order": [
+              "A0603"
+            ]
+          },
+          {
+            "interruption_start_bdt": "2026-08-08 12:36:05.090",
+            "interruption_end_bdt": "2026-08-08 14:26:22.331",
+            "interruption_seconds": 6617.241,
+            "satellites": [
+              "A0603"
+            ],
+            "investigation_order": [
+              "A0603"
+            ]
+          },
+          {
+            "interruption_start_bdt": "2026-08-08 14:43:25.492",
+            "interruption_end_bdt": "2026-08-08 15:00:00.000",
+            "interruption_seconds": 994.508,
+            "satellites": [
+              "A0603"
+            ],
+            "investigation_order": [
+              "A0603"
+            ]
+          },
+          {
+            "interruption_start_bdt": "2026-08-08 17:20:00.000",
+            "interruption_end_bdt": "2026-08-08 19:10:00.000",
+            "interruption_seconds": 6600.0,
+            "satellites": [
+              "A0504"
+            ],
+            "investigation_order": [
+              "A0504"
+            ]
+          },
+          {
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "interruption_seconds": 7200.0,
+            "satellites": [
+              "A0101",
+              "A0102",
+              "A0103",
+              "A0104",
+              "A0105",
+              "A0106",
+              "A0107",
+              "A0108",
+              "A0109",
+              "A0110",
+              "A0201",
+              "A0202",
+              "A0203",
+              "A0204",
+              "A0205",
+              "A0206",
+              "A0207",
+              "A0208",
+              "A0209",
+              "A0210",
+              "A0301",
+              "A0302",
+              "A0303",
+              "A0304",
+              "A0305",
+              "A0306",
+              "A0307",
+              "A0308",
+              "A0309",
+              "A0310",
+              "A0406",
+              "A0506",
+              "A0606"
+            ],
+            "investigation_order": [
+              "A0101",
+              "A0102",
+              "A0103",
+              "A0104",
+              "A0105",
+              "A0106",
+              "A0107",
+              "A0108",
+              "A0109",
+              "A0110",
+              "A0201",
+              "A0202",
+              "A0203",
+              "A0204",
+              "A0205",
+              "A0206",
+              "A0207",
+              "A0208",
+              "A0209",
+              "A0210",
+              "A0301",
+              "A0302",
+              "A0303",
+              "A0304",
+              "A0305",
+              "A0306",
+              "A0307",
+              "A0308",
+              "A0309",
+              "A0310",
+              "A0406",
+              "A0506",
+              "A0606"
+            ]
+          },
+          {
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "interruption_seconds": 946.586,
+            "satellites": [
+              "A0101",
+              "A0102",
+              "A0103",
+              "A0104",
+              "A0105",
+              "A0106",
+              "A0107",
+              "A0108",
+              "A0109",
+              "A0110",
+              "A0201",
+              "A0202",
+              "A0203",
+              "A0204",
+              "A0205",
+              "A0206",
+              "A0207",
+              "A0208",
+              "A0209",
+              "A0210",
+              "A0301",
+              "A0302",
+              "A0303",
+              "A0304",
+              "A0305",
+              "A0306",
+              "A0307",
+              "A0308",
+              "A0309",
+              "A0310",
+              "A0401",
+              "A0402",
+              "A0403",
+              "A0404",
+              "A0405",
+              "A0406",
+              "A0407",
+              "A0408",
+              "A0409",
+              "A0410",
+              "A0501",
+              "A0502",
+              "A0503",
+              "A0504",
+              "A0505",
+              "A0506",
+              "A0507",
+              "A0508",
+              "A0509",
+              "A0510",
+              "A0601",
+              "A0602",
+              "A0603",
+              "A0604",
+              "A0605",
+              "A0606",
+              "A0607",
+              "A0608",
+              "A0609",
+              "A0610"
+            ],
+            "investigation_order": [
+              "A0101",
+              "A0102",
+              "A0103",
+              "A0104",
+              "A0105",
+              "A0106",
+              "A0107",
+              "A0108",
+              "A0109",
+              "A0110",
+              "A0201",
+              "A0202",
+              "A0203",
+              "A0204",
+              "A0205",
+              "A0206",
+              "A0207",
+              "A0208",
+              "A0209",
+              "A0210",
+              "A0301",
+              "A0302",
+              "A0303",
+              "A0304",
+              "A0305",
+              "A0306",
+              "A0307",
+              "A0308",
+              "A0309",
+              "A0310",
+              "A0401",
+              "A0402",
+              "A0403",
+              "A0404",
+              "A0405",
+              "A0406",
+              "A0407",
+              "A0408",
+              "A0409",
+              "A0410",
+              "A0501",
+              "A0502",
+              "A0503",
+              "A0504",
+              "A0505",
+              "A0506",
+              "A0507",
+              "A0508",
+              "A0509",
+              "A0510",
+              "A0601",
+              "A0602",
+              "A0603",
+              "A0604",
+              "A0605",
+              "A0606",
+              "A0607",
+              "A0608",
+              "A0609",
+              "A0610"
+            ]
+          }
+        ],
+        "candidate_events": [
+          {
+            "event_id": "INT-20260808T120000-F1639A334B88",
+            "interruption_start_bdt": "2026-08-08 12:00:00.000",
+            "interruption_end_bdt": "2026-08-08 12:13:54.100",
+            "duration_seconds": 834.1,
+            "satellites": [
+              "A0603"
+            ],
+            "satellite_count": 1,
+            "pattern": "single_sat_long",
+            "landing_satellites": [
+              "A0308",
+              "A0309",
+              "A0604"
+            ],
+            "investigation_order": [
+              "A0603"
+            ]
+          },
+          {
+            "event_id": "INT-20260808T123605-73556752D200",
+            "interruption_start_bdt": "2026-08-08 12:36:05.090",
+            "interruption_end_bdt": "2026-08-08 14:26:22.331",
+            "duration_seconds": 6617.241,
+            "satellites": [
+              "A0603"
+            ],
+            "satellite_count": 1,
+            "pattern": "single_sat_long",
+            "landing_satellites": [
+              "A0108",
+              "A0301",
+              "A0302",
+              "A0304",
+              "A0309",
+              "A0407",
+              "A0408",
+              "A0601",
+              "A0602",
+              "A0605",
+              "A0606",
+              "A0609"
+            ],
+            "investigation_order": [
+              "A0603"
+            ]
+          },
+          {
+            "event_id": "INT-20260808T144325-993573E5C1AB",
+            "interruption_start_bdt": "2026-08-08 14:43:25.492",
+            "interruption_end_bdt": "2026-08-08 15:00:00.000",
+            "duration_seconds": 994.508,
+            "satellites": [
+              "A0603"
+            ],
+            "satellite_count": 1,
+            "pattern": "single_sat_long",
+            "landing_satellites": [
+              "A0103",
+              "A0405",
+              "A0601"
+            ],
+            "investigation_order": [
+              "A0603"
+            ]
+          },
+          {
+            "event_id": "INT-20260808T172000-90FE0ED90248",
+            "interruption_start_bdt": "2026-08-08 17:20:00.000",
+            "interruption_end_bdt": "2026-08-08 19:10:00.000",
+            "duration_seconds": 6600.0,
+            "satellites": [
+              "A0504"
+            ],
+            "satellite_count": 1,
+            "pattern": "single_sat_long",
+            "landing_satellites": [
+              "A0105",
+              "A0107",
+              "A0110",
+              "A0201",
+              "A0202",
+              "A0204",
+              "A0208",
+              "A0209",
+              "A0402",
+              "A0403",
+              "A0406",
+              "A0407",
+              "A0408",
+              "A0409",
+              "A0410",
+              "A0505",
+              "A0506",
+              "A0507",
+              "A0509"
+            ],
+            "investigation_order": [
+              "A0504"
+            ]
+          },
+          {
+            "event_id": "INT-20260808T180000-5BC4A94039BF",
+            "interruption_start_bdt": "2026-08-08 18:00:00.000",
+            "interruption_end_bdt": "2026-08-08 20:00:00.000",
+            "duration_seconds": 7200.0,
+            "satellites": [
+              "A0101",
+              "A0102",
+              "A0103",
+              "A0104",
+              "A0105",
+              "A0106",
+              "A0107",
+              "A0108",
+              "A0109",
+              "A0110",
+              "A0201",
+              "A0202",
+              "A0203",
+              "A0204",
+              "A0205",
+              "A0206",
+              "A0207",
+              "A0208",
+              "A0209",
+              "A0210",
+              "A0301",
+              "A0302",
+              "A0303",
+              "A0304",
+              "A0305",
+              "A0306",
+              "A0307",
+              "A0308",
+              "A0309",
+              "A0310",
+              "A0406",
+              "A0506",
+              "A0606"
+            ],
+            "satellite_count": 33,
+            "pattern": "fixed_sat_batch",
+            "landing_satellites": [
+              "A0107",
+              "A0410"
+            ],
+            "investigation_order": [
+              "A0101",
+              "A0102",
+              "A0103",
+              "A0104",
+              "A0105",
+              "A0106",
+              "A0107",
+              "A0108",
+              "A0109",
+              "A0110",
+              "A0201",
+              "A0202",
+              "A0203",
+              "A0204",
+              "A0205",
+              "A0206",
+              "A0207",
+              "A0208",
+              "A0209",
+              "A0210",
+              "A0301",
+              "A0302",
+              "A0303",
+              "A0304",
+              "A0305",
+              "A0306",
+              "A0307",
+              "A0308",
+              "A0309",
+              "A0310",
+              "A0406",
+              "A0506",
+              "A0606"
+            ]
+          },
+          {
+            "event_id": "INT-20260808T231450-804E70426FB4",
+            "interruption_start_bdt": "2026-08-08 23:14:50.930",
+            "interruption_end_bdt": "2026-08-08 23:30:37.516",
+            "duration_seconds": 946.586,
+            "satellites": [
+              "A0101",
+              "A0102",
+              "A0103",
+              "A0104",
+              "A0105",
+              "A0106",
+              "A0107",
+              "A0108",
+              "A0109",
+              "A0110",
+              "A0201",
+              "A0202",
+              "A0203",
+              "A0204",
+              "A0205",
+              "A0206",
+              "A0207",
+              "A0208",
+              "A0209",
+              "A0210",
+              "A0301",
+              "A0302",
+              "A0303",
+              "A0304",
+              "A0305",
+              "A0306",
+              "A0307",
+              "A0308",
+              "A0309",
+              "A0310",
+              "A0401",
+              "A0402",
+              "A0403",
+              "A0404",
+              "A0405",
+              "A0406",
+              "A0407",
+              "A0408",
+              "A0409",
+              "A0410",
+              "A0501",
+              "A0502",
+              "A0503",
+              "A0504",
+              "A0505",
+              "A0506",
+              "A0507",
+              "A0508",
+              "A0509",
+              "A0510",
+              "A0601",
+              "A0602",
+              "A0603",
+              "A0604",
+              "A0605",
+              "A0606",
+              "A0607",
+              "A0608",
+              "A0609",
+              "A0610"
+            ],
+            "satellite_count": 60,
+            "pattern": "fixed_landing_sat",
+            "landing_satellites": [
+              "A0605"
+            ],
+            "investigation_order": [
+              "A0101",
+              "A0102",
+              "A0103",
+              "A0104",
+              "A0105",
+              "A0106",
+              "A0107",
+              "A0108",
+              "A0109",
+              "A0110",
+              "A0201",
+              "A0202",
+              "A0203",
+              "A0204",
+              "A0205",
+              "A0206",
+              "A0207",
+              "A0208",
+              "A0209",
+              "A0210",
+              "A0301",
+              "A0302",
+              "A0303",
+              "A0304",
+              "A0305",
+              "A0306",
+              "A0307",
+              "A0308",
+              "A0309",
+              "A0310",
+              "A0401",
+              "A0402",
+              "A0403",
+              "A0404",
+              "A0405",
+              "A0406",
+              "A0407",
+              "A0408",
+              "A0409",
+              "A0410",
+              "A0501",
+              "A0502",
+              "A0503",
+              "A0504",
+              "A0505",
+              "A0506",
+              "A0507",
+              "A0508",
+              "A0509",
+              "A0510",
+              "A0601",
+              "A0602",
+              "A0603",
+              "A0604",
+              "A0605",
+              "A0606",
+              "A0607",
+              "A0608",
+              "A0609",
+              "A0610"
+            ]
+          }
+        ],
+        "truncated": false,
+        "groups_complete": true,
+        "database": "/Users/ypcj/GIT/troubleshooting_agent/data/sbc_simulation_20260808.db"
+      },
+      "status": "valid"
+    },
+    {
+      "evidence_id": "ev-0002",
+      "tree_node_id": "E2",
+      "tool_name": "topology_query",
+      "query_args": {
+        "tree_node_id": "E2",
+        "start_time": "2026-08-08 17:20:00.000",
+        "end_time": "2026-08-08 19:10:00.000",
+        "source_sat": "",
+        "target_station": "",
+        "observation_bdt": "2026-08-08 17:20:00.000",
+        "interruption_start_bdt": "2026-08-08 17:20:00.000",
+        "interruption_end_bdt": "2026-08-08 19:10:00.000",
+        "affected_objects": [
+          "A0504"
+        ],
+        "selected_event_id": "INT-20260808T172000-90FE0ED90248"
+      },
+      "result": {
+        "status": "ok",
+        "data": [
+          {
+            "satellite_id": "A0504",
+            "actual_landing_route": null
+          }
+        ],
+        "outcome": "path_missing",
+        "route_snapshot_bdt": "2026-08-08 17:00:00.000"
+      },
+      "status": "valid"
+    },
+    {
+      "evidence_id": "ev-0003",
+      "tree_node_id": "F4",
+      "tool_name": "laser_link_query",
+      "query_args": {
+        "tree_node_id": "F4",
+        "start_time": "2026-08-08 17:20:00.000",
+        "end_time": "2026-08-08 19:10:00.000",
+        "source_sat": "",
+        "target_station": "",
+        "observation_bdt": "2026-08-08 17:20:00.000",
+        "interruption_start_bdt": "2026-08-08 17:20:00.000",
+        "interruption_end_bdt": "2026-08-08 19:10:00.000",
+        "affected_objects": [
+          "A0504"
+        ],
+        "selected_event_id": "INT-20260808T172000-90FE0ED90248"
+      },
+      "result": {
+        "status": "ok",
+        "data": [
+          {
+            "source_satellite_id": "A0504",
+            "neighbor_link_observed": false
+          }
+        ],
+        "observation_bdt": "2026-08-08 17:20:00.000",
+        "outcome": "abnormal",
+        "decision_basis": "latest_link_event_and_both_endpoint_lock_telemetry"
+      },
+      "status": "valid"
+    }
+  ],
+  "boundaries": [
+    {
+      "node_id": "H6",
+      "label": "定界激光问题"
+    }
+  ],
+  "conclusions": [
+    {
+      "node_id": "I5",
+      "summary": "激光链路中断",
+      "evidence_ids": [
+        "ev-0001",
+        "ev-0002",
+        "ev-0003"
+      ]
+    }
+  ],
+  "incomplete_reason": null,
+  "missing_inputs": [],
+  "llm_judgements": [],
+  "llm_explanation": "**结论**：结构化状态为 `completed`。故障窗口 `2026-08-08 17:20:00—19:10:00`，受影响对象 `A0504`，当前节点 `I5`，结论为：**激光链路中断**。事件 ID：`INT-20260808T172000-90FE0ED90248`。\n\n**实际分支**：  \n`A 选择中断事件 → B/C1 分类为 single_sat_long → D2 定性为节点问题 → E2 断点 path_missing → F4 断点 abnormal → H6 边界“定界激光问题” → I5 结论“激光链路中断”`。  \n断点/边界：`E2`、`F4`，边界节点 `H6`。\n\n**关键证据**：  \n- `ev-0002`：`topology_query`，A0504 `actual_landing_route=null`，`outcome=path_missing`。  \n- `ev-0003`：`laser_link_query`，A0504 `neighbor_link_observed=false`，`outcome=abnormal`，依据 `latest_link_event_and_both_endpoint_lock_telemetry`。  \n- `ev-0001`：`keep_alive_query`，异常为 `true`，模式为 `multiple_sat_network`，原始结果受影响对象包含 A0504；该证据在 structured_result 中支持 I5 结论。\n\n**排除项与限制**：  \n- 可依据 `ev-0002`、`ev-0003` 排除查询时刻“存在落地路由”和“邻居链路正常观测”的情形。  \n- structured_result 未给出明确的其他排除项。遍历中 `B`、`C1`、`D2`、`H6` 无 `evidence_ids`，`I5` 在 traversal 中证据为空但 conclusions 列出 `ev-0001/ev-0002/ev-0003`。因此不能声称已完整排除所有非激光因素，如节点硬件、路由配置等；证据不足处需补充。\n\n**置信度**：structured_result 未提供量化置信度。基于 `E2/F4` 关键断点证据有效、状态为 `completed`，对“激光链路中断”有直接证据支撑；但中间分类节点缺少证据，整体置信度受限，不能视为完全确定。\n\n**下一步建议**：  \n1. 复核 A0504 激光链路事件及两端锁定遥测，确认 `neighbor_link_observed=false` 与故障窗口一致。  \n2. 检查 A0504 激光终端状态、指向/捕获跟踪、光功率、温控与电源。  \n3. 若短时无法恢复，启用备份路由或链路切换，并持续监控 keep-alive。  \n4. 补充 `B/C1/D2/H6` 分支判定证据，以增强“single_sat_long、节点问题、激光问题定界”的完整性。",
+  "llm_error": null
+}

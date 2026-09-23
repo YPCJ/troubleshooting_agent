@@ -4,14 +4,23 @@ from typing import Any, Iterator, Mapping, Protocol
 
 
 class LLMProvider(Protocol):
+    def list_models(self) -> list[str]:
+        ...
+
+    def get_model_capabilities(self, model_name: str) -> Mapping[str, Any]:
+        ...
+
     def chat(
         self,
         messages: list[Mapping[str, Any]],
         *,
         tools: Any = None,
         model_name: str | None = None,
-        temperature: float = 0.7,
-        max_output_tokens: int = 4096,
+        temperature: float | None = None,
+        max_output_tokens: int | None = None,
+        top_p: float | None = None,
+        top_k: int | None = None,
+        verbosity: str | None = None,
     ) -> Mapping[str, Any]:
         ...
 
@@ -21,7 +30,10 @@ class LLMProvider(Protocol):
         *,
         tools: Any = None,
         model_name: str | None = None,
-        temperature: float = 0.7,
-        max_output_tokens: int = 4096,
+        temperature: float | None = None,
+        max_output_tokens: int | None = None,
+        top_p: float | None = None,
+        top_k: int | None = None,
+        verbosity: str | None = None,
     ) -> Iterator[dict[str, Any]]:
         ...

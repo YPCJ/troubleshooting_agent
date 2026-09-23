@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# Test-only dependencies; keep out of requirements.txt so deployments stay lean.
+pytest==9.1.1

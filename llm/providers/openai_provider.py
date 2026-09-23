@@ -87,29 +87,78 @@ class OpenAIProvider:
                 model_ids.append(model_id.strip())
         return sorted(set(model_ids))
 
+    def _uses_completion_token_budget(self, model_name: str) -> bool:
+        provider_id = str(self._profile.get("provider") or "openai").strip().lower()
+        model_id = model_name.strip().lower()
+        return provider_id == "openai" and model_id.startswith(("o1", "o3", "o4", "gpt-5", "gpt-6"))
+
+    def get_model_capabilities(self, model_name: str) -> Mapping[str, Any]:
+        provider_id = str(self._profile.get("provider") or "openai").strip().lower()
+        model_id = model_name.strip().lower()
+        model_managed_sampling = self._uses_completion_token_budget(model_name)
+        unknown_compatible_service = provider_id not in {"openai", "aliyun"}
+        sampling_supported = not model_managed_sampling
+        verbosity_supported = provider_id == "openai" and model_id.startswith(("gpt-5", "gpt-6"))
+        return {
+            "provider": provider_id,
+            "model": model_name,
+            "parameters": {
+                "temperature": {"supported": sampling_supported, "min": 0, "max": 2, "step": 0.1, "default": None},
+                "top_p": {"supported": sampling_supported, "min": 0, "max": 1, "step": 0.05, "default": None},
+                "top_k": {"supported": False, "default": None},
+                "max_output_tokens": {"supported": True, "min": 1, "max": None, "step": 1, "default": None},
+            },
+            "exclusive_groups": [["temperature", "top_p"]],
+            "defaults_source": "unknown" if unknown_compatible_service else "provider",
+            "recommend_provider_defaults": model_managed_sampling or unknown_compatible_service,
+            "sampling_presets": [] if model_managed_sampling or unknown_compatible_service else [
+                {"id": "stable", "temperature": 0.2},
+                {"id": "flexible", "temperature": 0.8},
+            ],
+            "verbosity": {
+                "supported": verbosity_supported,
+                "choices": ["low", "medium", "high"] if verbosity_supported else [],
+                "default": "medium" if verbosity_supported else None,
+            },
+            "output": {
+                "omission_supported": True,
+                "counts_reasoning_tokens": model_managed_sampling,
+                "recommended": None,
+            },
+        }
+
     def chat(
         self,
         messages: list[Mapping[str, Any]],
         *,
         tools: Any = None,
         model_name: str | None = None,
-        temperature: float = 0.7,
-        max_output_tokens: int = 4096,
+        temperature: float | None = None,
+        max_output_tokens: int | None = None,
         top_p: float | None = None,
         top_k: int | None = None,
+        verbosity: str | None = None,
     ) -> Mapping[str, Any]:
         if not model_name:
             raise ValueError("OpenAI model_name is required")
         client = self._client()
-        resp = client.chat.completions.create(
-            model=model_name,
-            messages=messages,
-            max_tokens=max_output_tokens,
-            tools=tools,
-            temperature=temperature,
-            top_p=top_p,
-            tool_choice="auto",
-        )
+        request: dict[str, Any] = {
+            "model": model_name,
+            "messages": messages,
+        }
+        if max_output_tokens is not None:
+            token_parameter = "max_completion_tokens" if self._uses_completion_token_budget(model_name) else "max_tokens"
+            request[token_parameter] = max_output_tokens
+        if temperature is not None:
+            request["temperature"] = temperature
+        if top_p is not None:
+            request["top_p"] = top_p
+        if verbosity is not None:
+            request["verbosity"] = verbosity
+        if tools:
+            request["tools"] = tools
+            request["tool_choice"] = "auto"
+        resp = client.chat.completions.create(**request)
         if not resp.choices:
             return {"content": "", "tool_calls": []}
         msg = resp.choices[0].message
@@ -131,24 +180,33 @@ class OpenAIProvider:
         *,
         tools: Any = None,
         model_name: str | None = None,
-        temperature: float = 0.7,
-        max_output_tokens: int = 4096,
+        temperature: float | None = None,
+        max_output_tokens: int | None = None,
         top_p: float | None = None,
         top_k: int | None = None,
+        verbosity: str | None = None,
     ) -> Iterator[dict[str, Any]]:
         if not model_name:
             raise ValueError("OpenAI model_name is required")
         client = self._client()
-        stream = client.chat.completions.create(
-            model=model_name,
-            messages=messages,
-            max_tokens=max_output_tokens,
-            tools=tools,
-            temperature=temperature,
-            top_p=top_p,
-            tool_choice="auto",
-            stream=True,
-        )
+        request: dict[str, Any] = {
+            "model": model_name,
+            "messages": messages,
+            "stream": True,
+        }
+        if max_output_tokens is not None:
+            token_parameter = "max_completion_tokens" if self._uses_completion_token_budget(model_name) else "max_tokens"
+            request[token_parameter] = max_output_tokens
+        if temperature is not None:
+            request["temperature"] = temperature
+        if top_p is not None:
+            request["top_p"] = top_p
+        if verbosity is not None:
+            request["verbosity"] = verbosity
+        if tools:
+            request["tools"] = tools
+            request["tool_choice"] = "auto"
+        stream = client.chat.completions.create(**request)
         content_buffer = ""
         tool_calls_by_index: dict[int, dict[str, Any]] = {}
         for chunk in stream:

@@ -1,4 +1,4 @@
-from openai import OpenAI
+from llm.legacy import legacy_chat_completion, legacy_openai_client
 from dotenv import load_dotenv
 import subprocess
 from pathlib import Path
@@ -286,7 +286,7 @@ class TodoManager:
         return "\n".join(lines)
 
 TODO = TodoManager()
-client=OpenAI(api_key=os.getenv("api_key"),base_url=os.getenv("base_url"),http_client=httpx.Client())
+client=legacy_openai_client(http_client=httpx.Client())
 web_searchtool=BaiduOfficialWebSearch()
 #message=[{"role":"system", "content":SYSTEM},{"role":"user", "content":"请介绍一下你自己"}]
 
@@ -523,7 +523,7 @@ def run_subagent(prompt: str) -> str:
     sub_context.append({"role":"system","content":sub_system})
     sub_context.append({"role": "user", "content": prompt})
     for _ in range(10):  # safety limit
-        response=client.chat.completions.create(
+        response=legacy_chat_completion(client,
             model=model_name,
             messages=sub_context,
             max_tokens=10000,
@@ -553,7 +553,7 @@ def run_subagent(prompt: str) -> str:
     return response.choices[0].message.content or "(no summary)"
     #return "".join(b.text for b in response.choices[0].message if hasattr(b, "text")) or "(no summary)"
 
-def agent_loop(messages: list,client:OpenAI):
+def agent_loop(messages: list,client:Any):
     rounds_since_todo = 0
     while True:
         #编写了两套代码，一套是固定输出，一套是流式输出
@@ -561,7 +561,7 @@ def agent_loop(messages: list,client:OpenAI):
         full_content=""
         full_tool={}
         print("_________________________","大模型开始输出","_________________________")
-        response=client.chat.completions.create(
+        response=legacy_chat_completion(client,
             model=model_name,
             messages=messages,
             max_tokens=10000,

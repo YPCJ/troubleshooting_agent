@@ -1,4 +1,4 @@
-from openai import OpenAI
+from llm.legacy import legacy_chat_completion, legacy_openai_client
 from dotenv import load_dotenv
 import subprocess
 from pathlib import Path
@@ -18,6 +18,7 @@ from tabulate import tabulate
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import ast
+from llm.call_tracking import format_model_call_progress
 
 
 # 加载环境变量，设置时间
@@ -132,7 +133,7 @@ SYSTEM = f"""你是一个故障排查专家.工作在{WORKDIR}目录下，现在
 
 """
 print(f"智能体首次运行，其初始提示词为：\n{SYSTEM}\n--------------------")
-client=OpenAI(api_key=os.getenv("api_key"),base_url=os.getenv("base_url"))
+client=legacy_openai_client()
 sub_system=f"""你是一个工作在{os.getcwd()}目录下的卫星健康周报撰写专家，根据用户提供的信息，按照规范格式撰写健康周报。你工作在跨平台环境中（macOS/Linux/Windows），请根据当前系统选择合适命令（如 macOS/Linux 使用 ls、Windows 使用 dir），并优先使用当前环境可用的 Python 解释器。
 你可以访问{os.path.join(os.getcwd(),"skills/document_write")}目录下的所有文件。用户所提供的信息存放在source目录下。
 你写好的周报存放在output目录下，命名为“卫星健康周报.md"。请注意output/卫星健康周报.md文件内可能已经有内容了，除了格式整理外，不要覆盖其他内容。
@@ -210,7 +211,7 @@ def memory_search(query:str)->list:
         memory_history.append({"role":"system","content":memory_prompt})
         memory_history.append({"role":"user","content":query})
         #print(f"memory_history:{memory_history}")
-        response = client.chat.completions.create(
+        response = legacy_chat_completion(client,
             model=model_name,
             messages=memory_history,
             max_tokens=10000,
@@ -434,8 +435,8 @@ def run_subagent(prompt: str) -> str:
         id_print = 0
         name_print = 0
         arg_print = 0
-        print(f"------------△△△△△本次子任务智能体的第{u}次模型输出△△△△△-----------\n")
-        response=client.chat.completions.create(
+        print(f"------------△△△△△当前子任务内第 {u + 1} 次模型调用△△△△△-----------\n")
+        response=legacy_chat_completion(client,
             model=model_name,
             messages=sub_context,
             max_tokens=50000,
@@ -657,7 +658,7 @@ Child_tools=[
                  }}
 ]
 
-def agent_loop(messages: list,client:OpenAI):
+def agent_loop(messages: list,client:Any):
     rounds_since_todo = 0
     llm_count=0
     while True:
@@ -669,8 +670,8 @@ def agent_loop(messages: list,client:OpenAI):
         id_print=0
         name_print=0
         arg_print=0
-        print(f"______________________这是本次任务中大模型的第{llm_count}次调用_________________________")
-        response=client.chat.completions.create(
+        print(f"______________________{format_model_call_progress(llm_count)}_________________________")
+        response=legacy_chat_completion(client,
             model=model_name,
             messages=messages,
             max_tokens=10000,

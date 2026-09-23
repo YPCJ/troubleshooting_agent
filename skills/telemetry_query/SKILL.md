@@ -36,6 +36,14 @@ description: 专注于01号卫星故障数据获取与结构化故障分析。�
    - 用于保存结构化分析结果。
 3. `load_skills`
    - 仅当用户明确要求报告时，加载 `fault-analysis-report`。
+4. `skills/telemetry_query/scripts/telemetry_stats.py`
+   - **遥测统计分析脚本（推荐复用，禁止每次临时重写）**。对 `data_query` 返回的 JSON 缓存做全量统计 + 阈值判定 + 可选时窗过滤：
+     ```bash
+     python3 skills/telemetry_query/scripts/telemetry_stats.py \
+       --data <data_query缓存.json> [--threshold 10] \
+       [--start "YYYY-MM-DD HH:MM" --end "YYYY-MM-DD HH:MM"]
+     ```
+   - 输出：点数/时间范围/均值/标准差/最大最小值(含时间)/低于阈值判定，辅助本技能第4节诊断流程。
 **避免在本技能中直接生成最终 Markdown 报告正文。**
 ---
 ## 3. 调用 data_query 的强约束

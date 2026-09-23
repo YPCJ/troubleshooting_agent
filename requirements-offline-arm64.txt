@@ -1,0 +1,9 @@
+# Minimal SBC troubleshooting deployment on CPython 3.12 / Linux aarch64.
+# Dependencies of these packages are resolved into the offline wheelhouse by
+# scripts/offline/build_arm64.sh. Do not add plotting/OCR/data-science extras here.
+langgraph==1.2.11
+langgraph-checkpoint-sqlite==3.1.1
+openai==2.45.0
+PyYAML==6.0.3
+requests==2.34.2
+chardet==7.4.3

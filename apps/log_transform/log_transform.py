@@ -21,7 +21,8 @@ import shlex
 import pandas as pd
 import chardet
 from tabulate import tabulate
-from ai_gemini import chat_reply, chat_reply_stream
+from llm import chat_reply, chat_reply_stream
+from llm.call_tracking import format_model_call_progress
 
 # 加载环境变量，设置时间
 now=datetime.now()
@@ -356,9 +357,9 @@ def agent_loop(messages: list):
         final_tool_calls = []
         printed_tool_call_ids = set()
         llm_count+=1
-        print(f"______________________这是本次任务中大模型的第{llm_count}次调用_________________________")
+        print(f"______________________{format_model_call_progress(llm_count)}_________________________")
         import threading, queue
-        stream = chat_reply_stream(messages, tools=Tools, model_name=model_name)
+        stream = chat_reply_stream(messages, tools=Tools, model_name=model_name, provider="gemini")
         chunk_q = queue.Queue()
         stream_finished_marker = {"type": "__STREAM_FINISHED__"}
 
@@ -424,7 +425,7 @@ def agent_loop(messages: list):
         if stream_failed and not full_content and not final_tool_calls:
             print("[stream fallback] stream failed to return data, retrying with sync Gemini request", flush=True)
             try:
-                sync_response = chat_reply(messages, tools=Tools, model_name=model_name)
+                sync_response = chat_reply(messages, tools=Tools, model_name=model_name, provider="gemini")
                 full_content = sync_response.get("content", "") or ""
                 final_tool_calls = sync_response.get("tool_calls", []) or final_tool_calls
                 if full_content:

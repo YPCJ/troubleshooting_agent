@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
+import random
 import ssl
 import time
 from typing import Any, Iterator, Mapping
 
 from .config import resolve_model_runtime
-from .providers.gemini_provider import GeminiProvider
-from .providers.openai_provider import OpenAIProvider
+from .providers.registry import create_provider
 
 
 def _is_transient_llm_error(exc: BaseException) -> bool:
@@ -39,7 +39,7 @@ def _is_transient_llm_error(exc: BaseException) -> bool:
     )
 
 
-def _call_with_transient_retry(fn: Any, *, max_attempts: int = 4) -> Any:
+def _call_with_transient_retry(fn: Any, *, max_attempts: int = 6) -> Any:
     for attempt in range(max_attempts):
         try:
             return fn()
@@ -48,17 +48,15 @@ def _call_with_transient_retry(fn: Any, *, max_attempts: int = 4) -> Any:
                 raise
             if attempt >= max_attempts - 1:
                 raise RuntimeError(f"LLM transient failure after {max_attempts} attempts: {exc}") from exc
-            time.sleep(min(0.6 * (2**attempt), 3.0))
+            # Jitter keeps repeated reconnects from lining up on the same
+            # upstream window after an SSL/EOF drop.
+            backoff = min(0.8 * (2**attempt), 12.0)
+            time.sleep(backoff * (0.75 + random.random() * 0.5))
     raise RuntimeError("LLM call failed without exception details")
 
 
 def _build_provider(runtime: Mapping[str, Any]):
-    provider_name = str(runtime["provider"])
-    if provider_name == "gemini":
-        return GeminiProvider()
-    if provider_name in {"openai", "aliyun"}:
-        return OpenAIProvider(runtime["profile"])
-    raise ValueError(f"Unsupported model provider: {provider_name}")
+    return create_provider(str(runtime["provider"]), runtime["profile"])
 
 
 def _to_float(value: Any) -> float | None:
@@ -90,6 +88,7 @@ def chat_reply_stream(
     max_output_tokens: int | None = None,
     top_p: float | None = None,
     top_k: int | None = None,
+    verbosity: str | None = None,
 ) -> Iterator[dict[str, Any]]:
     runtime = resolve_model_runtime(
         profile_name=profile_name,
@@ -97,10 +96,13 @@ def chat_reply_stream(
         model_name=model_name,
     )
     model = runtime["model_name"]
-    effective_temperature = temperature if temperature is not None else (_to_float(runtime.get("temperature")) or 0.7)
-    effective_max_output_tokens = max_output_tokens if max_output_tokens is not None else (_to_int(runtime.get("max_output_tokens")) or 4096)
+    profile_temperature = _to_float(runtime.get("temperature"))
+    profile_max_output_tokens = _to_int(runtime.get("max_output_tokens"))
+    effective_temperature = temperature if temperature is not None else profile_temperature
+    effective_max_output_tokens = max_output_tokens if max_output_tokens is not None else profile_max_output_tokens
     effective_top_p = top_p if top_p is not None else _to_float(runtime.get("top_p"))
     effective_top_k = top_k if top_k is not None else _to_int(runtime.get("top_k"))
+    effective_verbosity = verbosity if verbosity is not None else runtime.get("verbosity")
     provider_impl = _build_provider(runtime)
 
     def _create_stream() -> Iterator[dict[str, Any]]:
@@ -112,9 +114,21 @@ def chat_reply_stream(
             max_output_tokens=effective_max_output_tokens,
             top_p=effective_top_p,
             top_k=effective_top_k,
+            verbosity=effective_verbosity,
         )
 
-    stream = _call_with_transient_retry(_create_stream)
+    def _start_stream() -> tuple[list[dict[str, Any]], Iterator[dict[str, Any]]]:
+        # chat_stream is a generator function, so the network call only runs on
+        # the first next(). Pull that chunk here to keep the connection attempt
+        # inside the retry loop; retrying later would duplicate emitted content.
+        iterator = _create_stream()
+        try:
+            return [next(iterator)], iterator
+        except StopIteration:
+            return [], iterator
+
+    first_chunks, stream = _call_with_transient_retry(_start_stream)
+    yield from first_chunks
     yield from stream
 
 
@@ -129,6 +143,7 @@ def chat_reply(
     max_output_tokens: int | None = None,
     top_p: float | None = None,
     top_k: int | None = None,
+    verbosity: str | None = None,
 ) -> Mapping[str, Any]:
     runtime = resolve_model_runtime(
         profile_name=profile_name,
@@ -136,10 +151,13 @@ def chat_reply(
         model_name=model_name,
     )
     model = runtime["model_name"]
-    effective_temperature = temperature if temperature is not None else (_to_float(runtime.get("temperature")) or 0.7)
-    effective_max_output_tokens = max_output_tokens if max_output_tokens is not None else (_to_int(runtime.get("max_output_tokens")) or 4096)
+    profile_temperature = _to_float(runtime.get("temperature"))
+    profile_max_output_tokens = _to_int(runtime.get("max_output_tokens"))
+    effective_temperature = temperature if temperature is not None else profile_temperature
+    effective_max_output_tokens = max_output_tokens if max_output_tokens is not None else profile_max_output_tokens
     effective_top_p = top_p if top_p is not None else _to_float(runtime.get("top_p"))
     effective_top_k = top_k if top_k is not None else _to_int(runtime.get("top_k"))
+    effective_verbosity = verbosity if verbosity is not None else runtime.get("verbosity")
     provider_impl = _build_provider(runtime)
 
     def _call() -> Mapping[str, Any]:
@@ -151,6 +169,7 @@ def chat_reply(
             max_output_tokens=effective_max_output_tokens,
             top_p=effective_top_p,
             top_k=effective_top_k,
+            verbosity=effective_verbosity,
         )
 
     return _call_with_transient_retry(_call)

@@ -3,23 +3,13 @@ from __future__ import annotations
 import json
 import os
 import re
-import shlex
-import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 import sys
-from typing import Any, Callable, Mapping
+from typing import Any, Callable
 
-import requests
-try:
-    import chardet
-except Exception:  # pragma: no cover
-    chardet = None
-try:
-    import pandas as pd
-except Exception:  # pragma: no cover
-    pd = None
+import tool_boxes
 
 PROJECT_ROOT = next((p for p in [Path(__file__).resolve().parent, *Path(__file__).resolve().parent.parents] if (p / ".env").exists()), Path(__file__).resolve().parent.parent)
 if str(PROJECT_ROOT) not in sys.path:
@@ -27,15 +17,15 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from llm import chat_reply
 from llm.config import default_profiles, load_profiles, project_root
+from backend.tool_runtime import ToolRegistry
+from llm.call_tracking import (
+    format_model_call_progress,
+    is_model_call_progress,
+)
+from backend.tools.registry import FAULT_DIAGNOSES_TOOLING_CONFIG, build_tooling
 
 
 WORKDIR = project_root()
-DATA_URL = os.getenv("DATA_URL", "http://49.233.215.205:5000/api/external-query")
-
-
-def _sanitize_filename(text: str) -> str:
-    sanitized = re.sub(r"[^A-Za-z0-9_-]+", "_", text or "")
-    return sanitized.strip("_")[:140] or "data"
 
 
 def _now_stamp() -> str:
@@ -72,13 +62,6 @@ def _normalize_text(content: Any) -> str:
                 chunks.append(item)
         return "\n".join(part for part in chunks if part).strip()
     return str(content)
-
-
-def _safe_path(path: str) -> Path:
-    resolved = (WORKDIR / path).resolve()
-    if not resolved.is_relative_to(WORKDIR):
-        raise ValueError(f"Path escapes workspace: {path}")
-    return resolved
 
 
 def _infer_artifact_type(path: str) -> str:
@@ -247,6 +230,9 @@ class SkillCatalog:
             raise KeyError(skill_id)
         return skill.markdown
 
+    def get_item(self, skill_id: str):
+        return self.skills.get(skill_id)
+
     def update_markdown(self, skill_id: str, markdown: str) -> None:
         skill = self.skills.get(skill_id)
         if not skill:
@@ -262,290 +248,113 @@ def _resolve_model_profile(model_profile: str | None) -> str:
     return model_profile or os.getenv("MODEL_PROFILE") or default_profile
 
 
-def _run_bash(command: str) -> str:
-    dangerous = ["rm -rf /", "sudo", "shutdown", "reboot", "> /dev/"]
-    shell_operators = ["|", "&&", "||", ";", ">", "<", "`", "$"]
-    if any(d in command for d in dangerous):
-        return "Error: Dangerous command blocked"
-    if any(op in command for op in shell_operators):
-        return "Error: Shell operators are not allowed in bash tool"
-    try:
-        args = shlex.split(command)
-        if not args:
-            return "Error: Empty command"
-        r = subprocess.run(args, shell=False, cwd=str(WORKDIR), capture_output=True, text=True, timeout=120, encoding="utf-8", errors="ignore")
-        out = (r.stdout + r.stderr).strip()
-        return out[:50000] if out else "(no output)"
-    except Exception as exc:
-        return f"Error: {exc}"
+TODO_HINT_KEYWORDS = (
+    "排查",
+    "分析",
+    "生成报告",
+    "报告",
+    "方案",
+    "步骤",
+    "拆分",
+    "规划",
+    "梳理",
+    "多步骤",
+    "多个",
+    "同时",
+    "对比",
+    "时间段",
+    "原因",
+)
 
-
-def _run_bash_with_file_preview(command: str) -> str:
-    dangerous = ["rm -rf /", "sudo", "shutdown", "reboot", "> /dev/"]
-    shell_operators = ["|", "&&", "||", ";", ">", "<", "`", "$"]
-    if any(d in command for d in dangerous):
-        return "Error: Dangerous command blocked"
-    if any(op in command for op in shell_operators):
-        return "Error: Shell operators are not allowed in bash tool"
-    preview = _maybe_preview_file_via_bash(command)
-    if preview is not None:
-        return preview
-    return _run_bash(command)
-
-
-def _run_read(path: str, limit: int | None = None) -> str:
-    try:
-        text = _safe_path(path).read_text(encoding="utf-8")
-        lines = text.splitlines()
-        if limit and limit < len(lines):
-            lines = lines[:limit] + [f"... ({len(lines) - limit} more lines)"]
-        return "\n".join(lines)[:50000]
-    except Exception as exc:
-        return f"Error: {exc}"
-
-
-def _detect_file_encoding(path: str) -> str:
-    if chardet is None:
-        return "utf-8"
-    try:
-        raw = _safe_path(path).read_bytes()[:50000]
-        detected = chardet.detect(raw).get("encoding")
-        return str(detected or "utf-8")
-    except Exception:
-        return "utf-8"
-
-
-def _run_read_text_smart(path: str, limit: int | None = None) -> str:
-    enc_guess = _detect_file_encoding(path)
-    for enc in [enc_guess, "utf-8", "gbk", "gb2312", "gb18030"]:
-        try:
-            text = _safe_path(path).read_text(encoding=enc)
-            lines = text.splitlines()
-            if limit and limit < len(lines):
-                lines = lines[:limit] + [f"... ({len(lines) - limit} more lines)"]
-            return "\n".join(lines)[:50000]
-        except UnicodeDecodeError:
+TODO_SOFT_REMINDER_GAP_ROUNDS = 3
+TODO_ENFORCE_ON_EACH_TOOL_ROUND = True
+def _latest_user_text(messages: list[dict[str, Any]]) -> str:
+    for message in reversed(messages):
+        if str(message.get("role", "")).lower() != "user":
             continue
-        except Exception as exc:
-            return f"Error: {exc}"
-    return "Error: failed to decode file with supported encodings"
+        return _normalize_text(message.get("content")).strip()
+    return ""
 
 
-def _run_read_csv(path: str, limit: int | None = None) -> str:
-    if pd is None:
-        return "Error in read csv files:pandas is not installed"
-    nrows = limit or 5
-    enc_guess = _detect_file_encoding(path)
-    for enc in [enc_guess, "utf-8", "gbk", "gb2312", "gb18030"]:
-        try:
-            df = pd.read_csv(_safe_path(path), encoding=enc, nrows=nrows)
-            try:
-                table = df.to_markdown(index=False)
-            except Exception:
-                table = df.to_string(index=False)
-            return f"读取的csv文件内容为:\n{table}"
-        except UnicodeDecodeError:
+def _model_history_messages(
+    messages: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    history: list[dict[str, str]] = []
+    for message in messages:
+        role = str(message.get("role", "")).strip()
+        if role not in {"user", "assistant"}:
             continue
-        except Exception as exc:
-            return f"Error in read csv files:{exc}"
-    return "Error in read csv files: failed to decode CSV with supported encodings"
+        if str(message.get("kind", "")).strip() == "log":
+            continue
+        content = _normalize_text(message.get("content")).strip()
+        if not content:
+            continue
+        if role == "assistant" and is_model_call_progress(content):
+            continue
+        normalized = {"role": role, "content": content}
+        if history and history[-1] == normalized:
+            continue
+        history.append(normalized)
+    return history
 
 
-def _maybe_preview_file_via_bash(command: str) -> str | None:
-    try:
-        args = shlex.split(command)
-    except ValueError:
-        return None
-    if not args:
-        return None
-    file_arg: str | None = None
-    line_limit: int | None = None
-    if args[0] == "head":
-        if len(args) >= 4 and args[1] == "-n":
-            try:
-                line_limit = int(args[2])
-            except Exception:
-                line_limit = None
-            file_arg = args[3]
-        elif len(args) >= 2:
-            file_arg = args[-1]
-    elif args[0] == "cat" and len(args) == 2:
-        file_arg = args[1]
-    if not file_arg:
-        return None
-    suffix = Path(file_arg).suffix.lower()
-    if suffix == ".csv":
-        return _run_read_csv(file_arg, line_limit)
-    if suffix in {".txt", ".md", ".log", ".json", ".yaml", ".yml"}:
-        return _run_read_text_smart(file_arg, line_limit)
+def _should_soft_prompt_todo(messages: list[dict[str, Any]]) -> bool:
+    text = _latest_user_text(messages)
+    if len(text) < 24:
+        return False
+    compact = re.sub(r"\s+", "", text)
+    keyword_hits = sum(1 for keyword in TODO_HINT_KEYWORDS if keyword in compact)
+    multi_clause = any(sep in text for sep in ("，", "、", "；", "以及", "并且", "同时", "和"))
+    return keyword_hits >= 2 or (keyword_hits >= 1 and multi_clause)
+
+
+def _todo_soft_reminder_text() -> str:
+    return (
+        "<reminder>这是一个多步骤任务，请尽量在每完成一个阶段、一个关键分支或结论发生变化时及时更新 todo。"
+        "不要等到所有步骤都做完才一次性勾选；如果已经连续几轮没有同步 todo，请先补一次状态再继续。"
+        "如果你已经有更好的推进方式，也可以直接继续。</reminder>"
+    )
+
+
+def _todo_hard_reminder_text() -> str:
+    return (
+        "<reminder>你上一轮已经执行了工具，但没有同步 todo。"
+        "下一步请先调用 todo，更新各事项的状态（至少把当前进行中的事项标为 in_progress，已完成事项标为 completed），"
+        "完成后再继续其他工具调用。</reminder>"
+    )
+
+
+def _record_meta_for_tool(tool_name: str, arguments: dict[str, Any], skills: SkillCatalog) -> dict[str, Any]:
+    if tool_name in {"read_file", "write_file", "edit_file"}:
+        path = str(arguments.get("path", "")).strip()
+        source_name = Path(path).name or path
+        return {
+            "source_kind": "file",
+            "source_name": source_name,
+            "source_path": path,
+        }
+    if tool_name == "load_skills":
+        skill_name = str(arguments.get("name", "")).strip()
+        skill = skills.get_item(skill_name)
+        source_path = str(skill.path) if skill else ""
+        return {
+            "source_kind": "skill",
+            "source_name": skill_name,
+            "source_path": source_path,
+        }
+    return {}
+
+
+def _trace_summary_for_tool(tool_name: str, arguments: dict[str, Any], output: Any) -> str | None:
+    if tool_name == "read_file":
+        path = str(arguments.get("path", "")).strip()
+        label = Path(path).name or path or "unknown"
+        return f"### 读取文件完成：{label}"
+    if tool_name == "load_skills":
+        name = str(arguments.get("name", "")).strip() or "unknown"
+        return f"### 加载技能完成：{name}"
     return None
 
-
-def _run_write(path: str, content: str) -> dict[str, Any] | str:
-    try:
-        fp = _safe_path(path)
-        fp.parent.mkdir(parents=True, exist_ok=True)
-        fp.write_text(content, encoding="utf-8")
-        return {
-            "message": f"Wrote {len(content)} bytes to {path}",
-            "saved_to": str(fp),
-            "artifact_type": _infer_artifact_type(str(fp)),
-            "bytes": len(content),
-        }
-    except Exception as exc:
-        return f"Error: {exc}"
-
-
-def _run_edit(path: str, old_text: str, new_text: str) -> str:
-    try:
-        fp = _safe_path(path)
-        content = fp.read_text(encoding="utf-8")
-        if old_text not in content:
-            return f"Error: Text not found in {path}"
-        fp.write_text(content.replace(old_text, new_text, 1), encoding="utf-8")
-        return f"Edited {path}"
-    except Exception as exc:
-        return f"Error: {exc}"
-
-
-def _run_data_query(sat_id: str, para_name: list[str], start_time: str, end_time: str) -> dict[str, Any]:
-    request_body = {
-        "sat_id": sat_id,
-        "para_name": para_name,
-        "start_time": start_time,
-        "end_time": end_time,
-    }
-    try:
-        response = requests.post(DATA_URL, json=request_body, timeout=60)
-        response.raise_for_status()
-        result = response.json()
-        if not isinstance(result, list):
-            return {"error": "Unexpected response format", "body": result}
-        total_points = 0
-        preview = []
-        for item in result:
-            if not isinstance(item, dict):
-                continue
-            values = item.get("value", [])
-            total_points += len(values)
-            for point in values[:10]:
-                preview.append({"time": point.get("time"), "point_value": point.get("point_value")})
-        target_dir = WORKDIR / "skills" / "figure-plot" / "assets"
-        target_dir.mkdir(parents=True, exist_ok=True)
-        param_slug = _sanitize_filename("_".join(para_name))
-        time_slug = _sanitize_filename(f"{start_time}_{end_time}")
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        filename = f"data_query_{sat_id}_{param_slug}_{time_slug}_{timestamp}.json"
-        file_path = target_dir / filename
-        file_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-        return {
-            "saved_to": str(file_path),
-            "sat_id": sat_id,
-            "para_name": para_name,
-            "start_time": start_time,
-            "end_time": end_time,
-            "data_points": total_points,
-            "preview": preview,
-        }
-    except Exception as exc:
-        return {"error": str(exc)}
-
-
-def _run_data_query_raw(sat_id: str, para_name: list[str], start_time: str, end_time: str) -> Any:
-    request_body = {
-        "sat_id": sat_id,
-        "para_name": para_name,
-        "start_time": start_time,
-        "end_time": end_time,
-    }
-    try:
-        response = requests.post(DATA_URL, json=request_body, timeout=60)
-        response.raise_for_status()
-        return response.json()
-    except Exception as exc:
-        return {"error": str(exc)}
-
-
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "bash",
-            "description": "运行一个shell command。",
-            "parameters": {"type": "object", "properties": {"command": {"type": "string"}}},
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "read_file",
-            "description": "读取一个文本文件。",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string"},
-                    "limit": {"type": "integer"},
-                },
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "write_file",
-            "description": "将指定内容写入文件。",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string"},
-                    "content": {"type": "string"},
-                },
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "edit_file",
-            "description": "修改文件中的指定内容。",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string"},
-                    "old_text": {"type": "string"},
-                    "new_text": {"type": "string"},
-                },
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "data_query",
-            "description": "查询指定卫星遥测参数在某个时间段内的值。",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "sat_id": {"type": "string"},
-                    "para_name": {"type": "array", "items": {"type": "string"}},
-                    "start_time": {"type": "string"},
-                    "end_time": {"type": "string"},
-                },
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "load_skills",
-            "description": "根据skill名称加载技能内容。",
-            "parameters": {
-                "type": "object",
-                "properties": {"name": {"type": "string"}},
-            },
-        },
-    },
-]
 
 def _run_turn_with_tools(
     *,
@@ -559,8 +368,15 @@ def _run_turn_with_tools(
     on_trace: Callable[[str], None] | None = None,
     on_record: Callable[[dict[str, Any]], None] | None = None,
     on_assistant_message: Callable[[dict[str, Any]], None] | None = None,
+    record_meta_factory: Callable[[str, dict[str, Any]], dict[str, Any]] | None = None,
+    trace_summary_factory: Callable[[str, dict[str, Any], Any], str | None] | None = None,
+    required_tool_sequence: tuple[str, ...] = (),
 ) -> dict[str, Any]:
-    session_messages = [{"role": "system", "content": system_prompt}, *messages]
+    model_history = _model_history_messages(messages)
+    session_messages = [
+        {"role": "system", "content": system_prompt},
+        *model_history,
+    ]
     assistant_messages: list[dict[str, Any]] = []
     records: list[dict[str, Any]] = []
     trace_messages: list[str] = []
@@ -569,9 +385,17 @@ def _run_turn_with_tools(
     latest_tool_output: Any = None
     artifact_paths: set[str] = set()
     next_artifact_id = 1
+    last_todo_round_index = 0
+    last_todo_reminder_round = 0
+    todo_soft_prompt_enabled = _should_soft_prompt_todo(model_history)
+    enforce_todo_next_round = False
+    required_tool_index = 0
+    model_call_count = 0
 
-    def add_record(record_type: str, label: str) -> None:
+    def add_record(record_type: str, label: str, meta: dict[str, Any] | None = None) -> None:
         rec = {"id": f"rec_{len(records) + 1:04d}", "type": record_type, "label": label}
+        if meta:
+            rec.update(meta)
         records.append(rec)
         if on_record:
             on_record(rec)
@@ -583,22 +407,73 @@ def _run_turn_with_tools(
                 on_trace(line)
 
     for _ in range(max_rounds):
-        round_index = len(assistant_messages) + 1
-        add_trace(f"## 这是本次任务中大模型的第{round_index}次调用")
+        model_call_count += 1
+        round_index = model_call_count
+        active_tools = tools
+        required_tool = (
+            required_tool_sequence[required_tool_index]
+            if required_tool_index < len(required_tool_sequence)
+            else None
+        )
+        if required_tool:
+            active_tools = [
+                tool for tool in tools
+                if str(((tool.get("function") or {}).get("name") or "")).strip()
+                == required_tool
+            ]
+            if not active_tools:
+                unavailable_text = (
+                    f"无法继续排查：必需工具 `{required_tool}` 未注册或已禁用。"
+                )
+                assistant_message = {
+                    "role": "assistant",
+                    "content": unavailable_text,
+                    "model": runtime_profile,
+                    "tokens": _estimate_tokens(unavailable_text),
+                }
+                assistant_messages.append(assistant_message)
+                usage_total += assistant_message["tokens"]
+                add_trace(f"### 必需工具不可用：{required_tool}")
+                if on_assistant_message:
+                    on_assistant_message(assistant_message)
+                break
+        elif enforce_todo_next_round:
+            todo_only_tools = [
+                tool for tool in tools
+                if str(((tool.get("function") or {}).get("name") or "")).strip() == "todo"
+            ]
+            if todo_only_tools:
+                active_tools = todo_only_tools
         try:
-            response = chat_reply(session_messages, tools=tools, profile_name=runtime_profile)
+            response = chat_reply(session_messages, tools=active_tools, profile_name=runtime_profile)
         except Exception as exc:
-            latest_user = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
-            fallback = f"###（本地模拟）已接收：{str(latest_user)[:120]}。当前模型不可用：{exc}"
-            assistant_messages.append({"role": "assistant", "content": fallback, "model": runtime_profile, "tokens": _estimate_tokens(fallback)})
-            session_messages.append({"role": "assistant", "content": fallback})
-            usage_total += _estimate_tokens(fallback)
-            add_trace(f"[stream fallback] sync request failed: {exc}")
+            add_trace(f"## {format_model_call_progress(round_index)}")
+            add_trace(f"### 基座模型调用失败：{exc}")
+            if not records:
+                raise RuntimeError(f"基座模型调用失败（第 {round_index} 次调用）：{exc}") from exc
+            # Tool evidence already exists; surface it instead of discarding the
+            # whole round because of a transient model outage.
+            interrupted_text = (
+                f"基座模型在第 {round_index} 次调用失败：{exc}\n\n"
+                f"本轮已完成 {len(records)} 次工具调用，结果已保留在会话记录中。"
+                "请重试或切换模型继续，未完成的判断不要当作结论。"
+            )
+            assistant_message = {
+                "role": "assistant",
+                "content": interrupted_text,
+                "model": runtime_profile,
+                "tokens": _estimate_tokens(interrupted_text),
+            }
+            assistant_messages.append(assistant_message)
+            usage_total += assistant_message["tokens"]
+            if on_assistant_message:
+                on_assistant_message(assistant_message)
             break
 
         content = _normalize_text(response.get("content")).strip()
         tool_calls = list(response.get("tool_calls") or [])
         tokens = int((response.get("usage") or {}).get("total_tokens") or _estimate_tokens(content))
+        add_trace(f"## {format_model_call_progress(round_index)}")
         add_trace(f"### 模型返回 content length={len(content)}, tool_calls count={len(tool_calls)}")
         assistant_message = {"role": "assistant", "content": content, "model": runtime_profile, "tokens": tokens}
         if tool_calls:
@@ -609,30 +484,69 @@ def _run_turn_with_tools(
         if on_assistant_message and content:
             on_assistant_message(assistant_message)
 
+        if not tool_calls and required_tool:
+            reminder = (
+                f"<reminder>当前阶段必须先调用 {required_tool}，"
+                "请使用该工具完成本阶段，不要直接给出结论。</reminder>"
+            )
+            add_trace(f"### 提示：{reminder}")
+            session_messages.append({"role": "user", "content": reminder})
+            continue
         if not tool_calls:
             break
 
+        has_todo_call = any(str((call.get("function") or {}).get("name") or "") == "todo" for call in tool_calls)
+        has_non_todo_tool_call = any(str((call.get("function") or {}).get("name") or "") != "todo" for call in tool_calls)
+        if has_todo_call:
+            last_todo_round_index = round_index
+            enforce_todo_next_round = False
+
+        successful_tool_names: set[str] = set()
         for call in tool_calls:
             function = call.get("function") or {}
             tool_name = str(function.get("name") or "")
-            before_files = _snapshot_artifact_candidates()
             try:
                 arguments = json.loads(function.get("arguments") or "{}")
-            except json.JSONDecodeError:
+                if not isinstance(arguments, dict):
+                    raise ValueError("Tool arguments must be a JSON object")
+                argument_error = None
+            except (json.JSONDecodeError, ValueError) as exc:
                 arguments = {}
-            output = dispatch_tool(tool_name, arguments)
+                argument_error = str(exc)
+            record_meta = record_meta_factory(tool_name, arguments) if record_meta_factory else {}
+            add_record("tool" if tool_name != "load_skills" else "skill", f"{tool_name}({json.dumps(arguments, ensure_ascii=False)})", record_meta)
+            add_trace(f"### [tool call] {tool_name}() requested")
+            add_trace(f"### 本次工具调用：{tool_name}")
+            add_trace(f"### 本次工具调用的参数：{_short_text(arguments)}")
+            before_files = _snapshot_artifact_candidates()
+            if argument_error:
+                output: Any = {
+                    "status": "error",
+                    "error": f"Invalid tool arguments: {argument_error}",
+                }
+            else:
+                try:
+                    output = dispatch_tool(tool_name, arguments)
+                except Exception as exc:
+                    output = {
+                        "status": "error",
+                        "error": str(exc).strip() or exc.__class__.__name__,
+                    }
             after_files = _snapshot_artifact_candidates()
             discovered, next_artifact_id = _collect_new_artifacts(before_files, after_files, artifact_paths, next_artifact_id)
             artifacts.extend(discovered)
             latest_tool_output = output
-            add_record("tool" if tool_name != "load_skills" else "skill", f"{tool_name}({json.dumps(arguments, ensure_ascii=False)})")
-            add_trace(f"### [tool call] {tool_name}() requested")
-            add_trace(f"### 本次工具调用：{tool_name}")
-            add_trace(f"### 本次工具调用的参数：{_short_text(arguments)}")
             add_trace(f"### 本次工具调用的结果为：")
-            add_trace(_short_text(output, limit=2500))
-            if tool_name == "load_skills":
-                add_trace(f"### 本次运行中，加载了技能文件，内容为{_short_text(output, limit=3000)}")
+            summary_line = trace_summary_factory(tool_name, arguments, output) if trace_summary_factory else None
+            add_trace(summary_line or _short_text(output, limit=2500))
+            tool_failed = isinstance(output, dict) and (
+                bool(output.get("error")) or output.get("status") == "error"
+            )
+            if tool_failed:
+                if tool_name == "todo":
+                    enforce_todo_next_round = True
+            else:
+                successful_tool_names.add(tool_name)
             if isinstance(output, dict) and output.get("saved_to"):
                 path = str(output["saved_to"])
                 if path not in artifact_paths:
@@ -647,14 +561,39 @@ def _run_turn_with_tools(
                     next_artifact_id += 1
             session_messages.append({"role": "tool", "tool_call_id": call.get("id"), "content": json.dumps(output, ensure_ascii=False, default=str)})
 
+        if required_tool and required_tool in successful_tool_names:
+            required_tool_index += 1
+
+        should_soft_prompt_todo = (
+            todo_soft_prompt_enabled
+            and not has_todo_call
+            and round_index - max(last_todo_round_index, last_todo_reminder_round) >= TODO_SOFT_REMINDER_GAP_ROUNDS
+        )
+        if should_soft_prompt_todo:
+            add_trace(f"### 提示：{_todo_soft_reminder_text()}")
+            session_messages.append({"role": "user", "content": _todo_soft_reminder_text()})
+            last_todo_reminder_round = round_index
+
+        should_hard_enforce_todo = (
+            TODO_ENFORCE_ON_EACH_TOOL_ROUND
+            and todo_soft_prompt_enabled
+            and has_non_todo_tool_call
+            and not has_todo_call
+        )
+        if should_hard_enforce_todo:
+            add_trace(f"### 提示：{_todo_hard_reminder_text()}")
+            session_messages.append({"role": "user", "content": _todo_hard_reminder_text()})
+            enforce_todo_next_round = True
+
     if not any((msg.get("content") or "").strip() for msg in assistant_messages):
         try:
+            model_call_count += 1
+            add_trace(f"## {format_model_call_progress(model_call_count)}")
             final_response = chat_reply([*session_messages, {"role": "user", "content": final_prompt}], profile_name=runtime_profile)
             final_text = _normalize_text(final_response.get("content")).strip()
             final_tokens = int((final_response.get("usage") or {}).get("total_tokens") or _estimate_tokens(final_text))
-        except Exception:
-            final_text = ""
-            final_tokens = 0
+        except Exception as exc:
+            raise RuntimeError(f"基座模型调用失败（生成最终答复）：{exc}") from exc
 
         if not final_text:
             if isinstance(latest_tool_output, dict) and latest_tool_output.get("saved_to"):
@@ -681,20 +620,41 @@ def _run_turn_with_tools(
         "trace_messages": trace_messages,
         "artifacts": artifacts,
         "reply_text": reply_text,
+        "model_calls": model_call_count,
         "usage": {"total_tokens": usage_total},
         "model_profile": runtime_profile,
     }
 
 
 class FaultDiagnosesAgentService:
-    def __init__(self, skills_dir: Path | None = None):
+    def __init__(
+        self,
+        skills_dir: Path | None = None,
+        *,
+        enabled_checker: Callable[[str], bool] | None = None,
+    ):
         self.skills_dir = skills_dir or (WORKDIR / "skills")
         self.skills = SkillCatalog(self.skills_dir)
+        self.todo_manager = tool_boxes.TodoManager()
+        specs, handlers = build_tooling(
+            skills=self.skills,
+            config=FAULT_DIAGNOSES_TOOLING_CONFIG,
+            todo_manager=self.todo_manager,
+        )
+        self.tool_registry = ToolRegistry(
+            specs,
+            handlers,
+            enabled_checker=enabled_checker,
+        )
 
     @property
     def system_prompt(self) -> str:
         return (
-            f"你是一个故障排查专家.工作在{WORKDIR}目录下，现在的时间是{_now_stamp()}。\n"
+            f"你是本系统的通用智能体，工作在{WORKDIR}目录下，现在的时间是{_now_stamp()}。\n"
+            "你需要根据用户意图自主选择是否加载 skill：当用户请求某个领域流程、规范或模板时，优先调用 load_skills 获取对应技能内容，再结合工具执行。\n"
+            "对于复杂或多步骤任务，第一轮优先使用 todo 生成/更新待办列表；随后每一轮只要执行了实质性工具步骤，都要同步一次 todo（进行中/已完成状态），避免等到最后才一次性更新。\n"
+            "你可以使用 todo/task 来拆分复杂问题和跟踪步骤。\n"
+            "读取 .csv/.txt/.md 等文件内容时，不要使用 bash 执行 head/cat/awk 等直接读取原始字节，优先使用 read_file 工具。\n"
             f"可用的skill技能包括：\n{self.skills.descriptions()}\n"
         )
 
@@ -704,26 +664,14 @@ class FaultDiagnosesAgentService:
     def update_skill_markdown(self, skill_id: str, markdown: str) -> None:
         self.skills.update_markdown(skill_id, markdown)
 
-    def _dispatch_tool(self, tool_name: str, arguments: Mapping[str, Any]) -> Any:
-        if tool_name == "bash":
-            return _run_bash(str(arguments.get("command", "")))
-        if tool_name == "read_file":
-            return _run_read(str(arguments.get("path", "")), arguments.get("limit"))
-        if tool_name == "write_file":
-            return _run_write(str(arguments.get("path", "")), str(arguments.get("content", "")))
-        if tool_name == "edit_file":
-            return _run_edit(str(arguments.get("path", "")), str(arguments.get("old_text", "")), str(arguments.get("new_text", "")))
-        if tool_name == "data_query":
-            return _run_data_query(
-                str(arguments.get("sat_id", "")),
-                list(arguments.get("para_name") or []),
-                str(arguments.get("start_time", "")),
-                str(arguments.get("end_time", "")),
-            )
-        if tool_name == "load_skills":
-            skill_name = str(arguments.get("name", ""))
-            return self.skills.get_markdown(skill_name)
-        return {"error": f"Unknown tool: {tool_name}"}
+    def list_tools(self) -> list[dict[str, Any]]:
+        return self.tool_registry.list_items()
+
+    def list_tool_names(self) -> list[str]:
+        return [item["tool_name"] for item in self.list_tools()]
+
+    def set_tool_enabled_checker(self, checker: Callable[[str], bool] | None) -> None:
+        self.tool_registry.set_enabled_checker(checker)
 
     def run_turn(self, messages: list[dict[str, Any]], model_profile: str | None = None, max_rounds: int = 30,
                  on_trace: Callable[[str], None] | None = None,
@@ -733,24 +681,29 @@ class FaultDiagnosesAgentService:
         return _run_turn_with_tools(
             system_prompt=self.system_prompt,
             messages=messages,
-            tools=TOOLS,
-            dispatch_tool=self._dispatch_tool,
+            tools=self.tool_registry.openai_tools(),
+            dispatch_tool=self.tool_registry.dispatch,
             runtime_profile=runtime_profile,
             max_rounds=max_rounds,
             final_prompt="请不要再调用任何工具，基于已有上下文直接给出最终答复。需要包含：结论、关键数据摘要、图表或文件位置（如果有）。",
             on_trace=on_trace,
             on_record=on_record,
             on_assistant_message=on_assistant_message,
+            record_meta_factory=lambda tool_name, arguments: _record_meta_for_tool(tool_name, arguments, self.skills),
+            trace_summary_factory=_trace_summary_for_tool,
         )
 
 
 def _discover_app_cards() -> list[dict[str, str]]:
     candidates = [
-        ("fault_diagnoses", "🛰️", "故障分析与诊断"),
+        ("fault_diagnoses", "🛰️", "故障诊断智能体（默认）"),
+        ("sbc_network_troubleshooting", "🕸️", "天基承载网故障排查智能体"),
         ("fault_search", "🔎", "故障检索与定位"),
         ("document_write", "📝", "报告生成"),
         ("log_transform", "🧹", "日志格式转换"),
     ]
+    if os.getenv("AGENT_APP_MODE") == "sbc":
+        candidates = [item for item in candidates if item[0] == "sbc_network_troubleshooting"]
     result = []
     for app_id, icon, desc in candidates:
         result.append({"app_id": app_id, "icon": icon, "description": desc})
@@ -758,12 +711,29 @@ def _discover_app_cards() -> list[dict[str, str]]:
 
 
 class ServiceCatalog:
-    def __init__(self):
+    def __init__(self, enabled_checker: Callable[[str], bool] | None = None):
+        from backend.agents.sbc_network_troubleshooting import (
+            SBCNetworkTroubleshootingAgentService,
+        )
         from backend.log_transform_agent import LogTransformAgentService
 
-        self.agent = FaultDiagnosesAgentService()
-        self.log_transform_agent = LogTransformAgentService()
+        self.agent = FaultDiagnosesAgentService(enabled_checker=enabled_checker)
+        self.sbc_network_troubleshooting_agent = SBCNetworkTroubleshootingAgentService(
+            enabled_checker=enabled_checker,
+        )
+        self.log_transform_agent = LogTransformAgentService(enabled_checker=enabled_checker)
         self.apps = _discover_app_cards()
+
+    def close(self) -> None:
+        """Release resources held by the sub-agents (e.g. checkpoint connections)."""
+        for agent in (
+            self.agent,
+            self.sbc_network_troubleshooting_agent,
+            self.log_transform_agent,
+        ):
+            closer = getattr(agent, "close", None)
+            if callable(closer):
+                closer()
 
     def list_apps(self) -> list[dict[str, str]]:
         return self.apps
@@ -773,3 +743,44 @@ class ServiceCatalog:
 
     def update_markdown(self, skill_id: str, markdown: str) -> None:
         self.agent.update_skill_markdown(skill_id, markdown)
+
+    def list_tools(self) -> list[dict[str, Any]]:
+        merged: dict[str, dict[str, Any]] = {}
+        for app_id, tools in (
+            ("fault_diagnoses", self.agent.list_tools()),
+            (
+                "sbc_network_troubleshooting",
+                self.sbc_network_troubleshooting_agent.list_tools(),
+            ),
+            ("log_transform", self.log_transform_agent.list_tools()),
+        ):
+            for item in tools:
+                name = str(item["tool_name"])
+                current = merged.get(name)
+                if not current:
+                    merged[name] = {
+                        "tool_name": name,
+                        "description": str(item.get("description", "")),
+                        "category": str(item.get("category", "other")),
+                        "enabled": bool(item.get("enabled", True)),
+                        "available": item.get("available", True),
+                        "apps": [app_id],
+                    }
+                    continue
+                current["enabled"] = bool(item.get("enabled", True))
+                current["available"] = bool(current.get("available", True)) or bool(
+                    item.get("available", True)
+                )
+                apps = list(current.get("apps", []))
+                if app_id not in apps:
+                    apps.append(app_id)
+                current["apps"] = apps
+        return [merged[name] for name in sorted(merged.keys())]
+
+    def list_tool_names(self) -> list[str]:
+        return [item["tool_name"] for item in self.list_tools()]
+
+    def set_tool_enabled_checker(self, checker: Callable[[str], bool] | None) -> None:
+        self.agent.set_tool_enabled_checker(checker)
+        self.sbc_network_troubleshooting_agent.set_tool_enabled_checker(checker)
+        self.log_transform_agent.set_tool_enabled_checker(checker)

@@ -29,6 +29,7 @@ frontend/dist/
 *.png
 data/
 dist/
+offline-packages/
 
 # Generated local analysis reports
 # Ignore root-level reports whose filenames include a date/time suffix

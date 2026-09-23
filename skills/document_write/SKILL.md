@@ -13,19 +13,19 @@ description: 帮助用户根据已有的信息，撰写标准化的卫星健康�
 
 ### 2.1 生成标准化健康周报
 
-1. 仔细阅读提供的标准化健康周报模板，了解其格式要求。标准化健康周报模板存放在fault_assistant_AI/document_write/skills/document_write/reference/sample.md文件内。
+1. 仔细阅读提供的标准化健康周报模板，了解其格式要求。标准化健康周报模板存放在troubleshooting_agent/document_write/skills/document_write/reference/sample.md文件内。
 
-2. 然后阅读用户所提供的预警信息，用户的预警信息存放在fault_assistant_AI/document_write/skills/document_write/source文件夹下，所有的文件都是用户所提供的信息。
+2. 然后阅读用户所提供的预警信息，用户的预警信息存放在troubleshooting_agent/document_write/skills/document_write/source文件夹下，所有的文件都是用户所提供的信息。
 
-3. 启动子任务智能体1，其提示词写在fault_assistant_AI/document_write/skills/document_write/reference/prompt1.md文件内。在启动子智能体时，请重点将**你获取到的工作文件目录、输出文件位置等信息，也通过提示词的方式传递给子任务智能体**，避免重复工作。子任务智能体将完成健康周报前三部分内容的撰写，即总述、健康监测预警情况、系统健康评估情况。子任务智能体将以上三部分内容存储在skills/document_write/output/卫星健康监测周报.md文件内，并且将完整的文件存储位置及新增内容概述作为结果返回给主智能体。
+3. 启动子任务智能体1，其提示词写在troubleshooting_agent/document_write/skills/document_write/reference/prompt1.md文件内。在启动子智能体时，请重点将**你获取到的工作文件目录、输出文件位置等信息，也通过提示词的方式传递给子任务智能体**，避免重复工作。子任务智能体将完成健康周报前三部分内容的撰写，即总述、健康监测预警情况、系统健康评估情况。子任务智能体将以上三部分内容存储在skills/document_write/output/卫星健康监测周报.md文件内，并且将完整的文件存储位置及新增内容概述作为结果返回给主智能体。
 
-4. 启动子任务智能体2，其提示词写在fault_assistant_AI/document_write/skills/document_write/reference/prompt2.md文件内，在启动子智能体时，请重点将**你获取到的工作文件目录、输出文件位置等信息，也通过提示词的方式传递给子任务智能体**，避免重复工作。子任务智能体将完成健康周报后面第四、第五两部分内容的撰写，即预警数据统计与分析和关键参数变化分析。子任务智能体将以上三部分内容存储在skills/document_write/output/卫星健康监测周报.md文件内，在文件原有的内容基础上进行新增，将完整的文件存储位置及修改内容概述作为结果返回给主智能体。在关键参数变化分析的部分，要强调绘图的美观与意义，将每颗卫星单独绘制一张图表，针对每一颗卫星绘制其不同故障模式的告警数量柱状图。注意图表中中文字体的显示。
+4. 启动子任务智能体2，其提示词写在troubleshooting_agent/document_write/skills/document_write/reference/prompt2.md文件内，在启动子智能体时，请重点将**你获取到的工作文件目录、输出文件位置等信息，也通过提示词的方式传递给子任务智能体**，避免重复工作。子任务智能体将完成健康周报后面第四、第五两部分内容的撰写，即预警数据统计与分析和关键参数变化分析。子任务智能体将以上三部分内容存储在skills/document_write/output/卫星健康监测周报.md文件内，在文件原有的内容基础上进行新增，将完整的文件存储位置及修改内容概述作为结果返回给主智能体。在关键参数变化分析的部分，要强调绘图的美观与意义，将每颗卫星单独绘制一张图表，针对每一颗卫星绘制其不同故障模式的告警数量柱状图。注意图表中中文字体的显示。
 
 5. 启动子任务智能体3，对于生成的周报的内容与格式进行修正，以确保其符合标准要求。
 
 ### 2.2 根据用户意见修改健康周报
 
-1. 所生成的健康周报存储在fault_assistant_AI/document_write/skills/document_write/output/卫星健康监测周报.md文件内，请根据用户的意见对于健康周报的相关内容进行修改。
+1. 所生成的健康周报存储在troubleshooting_agent/document_write/skills/document_write/output/卫星健康监测周报.md文件内，请根据用户的意见对于健康周报的相关内容进行修改。
 
 ## 3 验证清单
 

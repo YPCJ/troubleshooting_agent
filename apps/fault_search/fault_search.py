@@ -1,4 +1,4 @@
-from openai import OpenAI
+from llm.legacy import legacy_chat_completion, legacy_openai_client
 from dotenv import load_dotenv
 import subprocess
 from pathlib import Path
@@ -18,6 +18,7 @@ from tabulate import tabulate
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import ast
+from llm.call_tracking import format_model_call_progress
 
 
 # 加载环境变量，设置时间
@@ -114,7 +115,7 @@ SYSTEM = f"""你是一个故障排查专家.工作在{WORKDIR}目录下，现在
 你是一个有记忆的智能体，针对用户的提问，可以根据你的记忆系统资料给用户一些后续操作步骤的建议。但是要注意**你只需要建议步骤，在用户确认之前，不要调用工具执行，不要调用工具执行**。
 """
 print(f"智能体首次运行，其初始提示词为：\n{SYSTEM}\n--------------------")
-client=OpenAI(api_key=os.getenv("api_key"),base_url=os.getenv("base_url"))
+client=legacy_openai_client()
 
 def run_bash(command: str) -> str:
     dangerous = ["rm -rf /", "sudo", "shutdown", "reboot", "> /dev/"]
@@ -186,7 +187,7 @@ def memory_search(query:str)->list:
         memory_history.append({"role":"system","content":memory_prompt})
         memory_history.append({"role":"user","content":query})
         #print(f"memory_history:{memory_history}")
-        response = client.chat.completions.create(
+        response = legacy_chat_completion(client,
             model=model_name,
             messages=memory_history,
             max_tokens=10000,
@@ -475,7 +476,7 @@ Tools=[
                  }}
 ]
 
-def agent_loop(messages: list,client:OpenAI):
+def agent_loop(messages: list,client:Any):
     rounds_since_todo = 0
     llm_count=0
     while True:
@@ -487,8 +488,8 @@ def agent_loop(messages: list,client:OpenAI):
         id_print=0
         name_print=0
         arg_print=0
-        print(f"______________________这是本次任务中大模型的第{llm_count}次调用_________________________")
-        response=client.chat.completions.create(
+        print(f"______________________{format_model_call_progress(llm_count)}_________________________")
+        response=legacy_chat_completion(client,
             model=model_name,
             messages=messages,
             max_tokens=10000,

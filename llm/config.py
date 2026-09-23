@@ -4,11 +4,97 @@ import json
 import os
 import re
 import sqlite3
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
 PROFILE_SCHEMA_VERSION = 1
+
+SAMPLING_MODES = {"provider_default", "stable", "flexible", "custom"}
+OUTPUT_MODES = {"provider_default", "custom_limit"}
+VERBOSITY_LEVELS = {"low", "medium", "high"}
+_UNSET = object()
+
+
+def infer_sampling_mode(profile: Mapping[str, Any]) -> str:
+    """Return the canonical sampling mode, including for legacy profiles."""
+    configured = str(profile.get("sampling_mode") or "").strip().lower()
+    if configured in SAMPLING_MODES:
+        return configured
+    legacy_style = str(profile.get("generation_style") or "").strip().lower()
+    if legacy_style == "recommended":
+        return "provider_default"
+    if legacy_style in {"stable", "flexible", "custom"}:
+        return legacy_style
+    if any(profile.get(key) is not None for key in ("temperature", "top_p", "top_n", "top_k")):
+        return "custom"
+    return "provider_default"
+
+
+def infer_output_mode(profile: Mapping[str, Any]) -> str:
+    """Return the canonical output-budget mode, including for legacy profiles."""
+    configured = str(profile.get("output_mode") or "").strip().lower()
+    if configured in OUTPUT_MODES:
+        return configured
+    return "custom_limit" if profile.get("max_output_tokens") is not None else "provider_default"
+
+
+def generation_style_for_sampling_mode(sampling_mode: str) -> str:
+    """Expose the former semantic field as a compatibility alias."""
+    return "recommended" if sampling_mode == "provider_default" else sampling_mode
+
+
+def _normalize_sampling_mode(
+    sampling_mode: Any = _UNSET,
+    generation_style: Any = _UNSET,
+) -> str | None:
+    normalized_mode: str | None = None
+    if sampling_mode is not _UNSET and sampling_mode is not None:
+        normalized_mode = str(sampling_mode).strip().lower()
+        if normalized_mode not in SAMPLING_MODES:
+            raise ValueError(
+                "sampling_mode 必须是 provider_default、stable、flexible 或 custom"
+            )
+    if generation_style is not _UNSET and generation_style is not None:
+        normalized_style = str(generation_style).strip().lower()
+        style_mode = "provider_default" if normalized_style == "recommended" else normalized_style
+        if style_mode not in SAMPLING_MODES:
+            raise ValueError(
+                "generation_style 必须是 recommended、stable、flexible 或 custom"
+            )
+        if normalized_mode is not None and normalized_mode != style_mode:
+            raise ValueError("sampling_mode 与 generation_style 不一致")
+        normalized_mode = style_mode
+    return normalized_mode
+
+
+def _normalize_output_mode(output_mode: Any = _UNSET) -> str | None:
+    if output_mode is _UNSET or output_mode is None:
+        return None
+    normalized = str(output_mode).strip().lower()
+    if normalized not in OUTPUT_MODES:
+        raise ValueError("output_mode 必须是 provider_default 或 custom_limit")
+    return normalized
+
+
+def _normalize_verbosity(verbosity: Any) -> str | None:
+    if verbosity is None:
+        return None
+    normalized = str(verbosity).strip().lower()
+    if normalized not in VERBOSITY_LEVELS:
+        raise ValueError("verbosity 必须是 low、medium 或 high")
+    return normalized
+
+
+def _clear_sampling_settings(profile: dict[str, Any]) -> None:
+    for key in ("temperature", "top_p", "top_n", "top_k", "sampling_mode", "generation_style"):
+        profile.pop(key, None)
+
+
+def _clear_output_settings(profile: dict[str, Any]) -> None:
+    for key in ("max_output_tokens", "output_mode"):
+        profile.pop(key, None)
 
 
 def project_root() -> Path:
@@ -37,6 +123,19 @@ def _load_env_file(path: Path) -> None:
 
 
 def default_profiles() -> dict[str, Any]:
+    if os.getenv("AGENT_APP_MODE") == "sbc":
+        return {
+            "default_profile": "intranet_default",
+            "profiles": {
+                "intranet_default": {
+                    "provider": "openai",
+                    "model": os.getenv("INTRANET_LLM_MODEL", "intranet-model"),
+                    "base_url": "${INTRANET_LLM_BASE_URL}",
+                    "api_key_envs": ["INTRANET_LLM_API_KEY"],
+                    "base_url_envs": ["INTRANET_LLM_BASE_URL"],
+                }
+            },
+        }
     return {
         "default_profile": "gemini_default",
         "profiles": {
@@ -66,104 +165,10 @@ def default_profiles() -> dict[str, Any]:
     }
 
 
-def _parse_scalar(raw: str) -> Any:
-    value = raw.strip()
-    if not value:
-        return ""
-    if value.startswith("[") and value.endswith("]"):
-        inner = value[1:-1].strip()
-        if not inner:
-            return []
-        return [_parse_scalar(part) for part in inner.split(",")]
-    if (value.startswith("'") and value.endswith("'")) or (value.startswith('"') and value.endswith('"')):
-        return value[1:-1]
-    if value.lower() in {"true", "false"}:
-        return value.lower() == "true"
-    if value.isdigit() or (value.startswith("-") and value[1:].isdigit()):
-        try:
-            return int(value)
-        except ValueError:
-            pass
-    if re.fullmatch(r"-?\d+\.\d+", value):
-        try:
-            return float(value)
-        except ValueError:
-            pass
-    return value
-
-
-def _parse_model_profiles(text: str) -> dict[str, Any]:
-    data: dict[str, Any] = {"profiles": {}}
-    section: str | None = None
-    profile_name: str | None = None
-    current_list_key: str | None = None
-
-    for raw_line in text.splitlines():
-        if not raw_line.strip() or raw_line.lstrip().startswith("#"):
-            continue
-        indent = len(raw_line) - len(raw_line.lstrip(" "))
-        line = raw_line.strip()
-
-        if indent == 0 and ":" in line:
-            key, value = line.split(":", 1)
-            key = key.strip()
-            value = value.strip()
-            section = key
-            profile_name = None
-            current_list_key = None
-            if value:
-                data[key] = _parse_scalar(value)
-            elif key == "profiles":
-                data[key] = {}
-            else:
-                data[key] = {}
-            continue
-
-        if section == "profiles":
-            if indent == 2 and line.endswith(":"):
-                profile_name = line[:-1].strip()
-                data["profiles"][profile_name] = {}
-                current_list_key = None
-                continue
-            if indent == 4 and profile_name and ":" in line:
-                key, value = line.split(":", 1)
-                key = key.strip()
-                value = value.strip()
-                if value:
-                    data["profiles"][profile_name][key] = _parse_scalar(value)
-                    current_list_key = None
-                else:
-                    data["profiles"][profile_name][key] = []
-                    current_list_key = key
-                continue
-            if indent >= 6 and profile_name and current_list_key and line.startswith("- "):
-                data["profiles"][profile_name].setdefault(current_list_key, []).append(_parse_scalar(line[2:]))
-                continue
-
-    if not data["profiles"]:
-        return default_profiles()
-    default_profile = data.get("default_profile")
-    if not isinstance(default_profile, str) or default_profile not in data["profiles"]:
-        default_profile = next(iter(data["profiles"].keys()))
-    return {"default_profile": default_profile, "profiles": data["profiles"]}
-
-
-def _legacy_profiles_path() -> Path:
-    cfg_path = os.getenv("MODEL_PROFILES_PATH")
-    if cfg_path:
-        return Path(cfg_path).expanduser()
-    return project_root() / "config" / "model_profiles.yaml"
-
-
 def _profiles_db_path() -> Path:
     cfg_path = os.getenv("MODEL_PROFILES_DB_PATH")
     if cfg_path:
         return Path(cfg_path).expanduser()
-    legacy_path = os.getenv("MODEL_PROFILES_PATH")
-    if legacy_path:
-        candidate = Path(legacy_path).expanduser()
-        if candidate.suffix.lower() in {".db", ".sqlite", ".sqlite3"}:
-            return candidate
     return project_root() / "data" / "model_profiles.sqlite3"
 
 
@@ -331,17 +336,11 @@ def _save_profiles_to_store(conn: sqlite3.Connection, data: Mapping[str, Any]) -
 def load_profiles(include_deleted: bool = True) -> dict[str, Any]:
     db_path = _profiles_db_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with _profiles_db() as conn:
+    with closing(_profiles_db()) as conn, conn:
         _init_profiles_store(conn)
         payload = _load_profiles_from_store(conn)
         if payload["profiles"]:
             return _normalize_profiles_payload(payload) if include_deleted else _active_profiles_payload(payload)
-
-        legacy_path = _legacy_profiles_path()
-        if legacy_path.exists() and legacy_path != db_path:
-            legacy_payload = _normalize_profiles_payload(_parse_model_profiles(legacy_path.read_text(encoding="utf-8")))
-            _save_profiles_to_store(conn, legacy_payload)
-            return legacy_payload if include_deleted else _active_profiles_payload(legacy_payload)
 
         default_payload = default_profiles()
         _save_profiles_to_store(conn, default_payload)
@@ -351,7 +350,7 @@ def load_profiles(include_deleted: bool = True) -> dict[str, Any]:
 def save_profiles(data: Mapping[str, Any]) -> None:
     db_path = _profiles_db_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with _profiles_db() as conn:
+    with closing(_profiles_db()) as conn, conn:
         _init_profiles_store(conn)
         _save_profiles_to_store(conn, data)
 
@@ -438,6 +437,12 @@ def update_profile(
     top_p: float | None = None,
     top_k: int | None = None,
     max_output_tokens: int | None = None,
+    sampling_mode: Any = _UNSET,
+    output_mode: Any = _UNSET,
+    generation_style: Any = _UNSET,
+    verbosity: Any = _UNSET,
+    clear_generation_overrides: bool = False,
+    replace_generation_overrides: bool = False,
 ) -> dict[str, Any]:
     cfg = load_profiles()
     profiles = cfg.get("profiles")
@@ -452,23 +457,83 @@ def update_profile(
         raise ValueError(f"Profile deleted: {profile_id}")
     profile = dict(profile_raw)
     if provider is not None:
-        profile["provider"] = provider
+        normalized_provider = provider.strip().lower()
+        from .providers import is_provider_registered
+
+        if not is_provider_registered(normalized_provider):
+            raise ValueError(f"Unsupported model provider: {normalized_provider}")
+        if normalized_provider != str(profile.get("provider") or "").strip().lower():
+            raise ValueError("已创建模型入口的 provider 不可修改，请复制为新入口")
     if model_name is not None:
-        profile["model"] = model_name
+        normalized_model = model_name.strip()
+        if normalized_model != str(profile.get("model") or "").strip():
+            raise ValueError("已创建模型入口的 model_name 不可修改，请复制为新入口")
     if base_url is not None:
-        profile["base_url"] = base_url
+        normalized_base_url = base_url.strip()
+        existing_base_url = str(profile.get("base_url") or "").strip()
+        if normalized_base_url != existing_base_url:
+            raise ValueError("已创建模型入口的 base_url 不可修改，请复制为新入口")
     if api_key_envs is not None:
-        profile["api_key_envs"] = [str(x) for x in api_key_envs if str(x).strip()]
+        normalized_api_key_envs = [str(x) for x in api_key_envs if str(x).strip()]
+        if normalized_api_key_envs != list(profile.get("api_key_envs") or []):
+            raise ValueError("已创建模型入口的 api_key_envs 不可修改，请复制为新入口")
     if base_url_envs is not None:
-        profile["base_url_envs"] = [str(x) for x in base_url_envs if str(x).strip()]
-    if temperature is not None:
-        profile["temperature"] = float(temperature)
-    if top_p is not None:
-        profile["top_p"] = float(top_p)
-    if top_k is not None:
-        profile["top_k"] = int(top_k)
-    if max_output_tokens is not None:
+        normalized_base_url_envs = [str(x) for x in base_url_envs if str(x).strip()]
+        if normalized_base_url_envs != list(profile.get("base_url_envs") or []):
+            raise ValueError("已创建模型入口的 base_url_envs 不可修改，请复制为新入口")
+    normalized_sampling_mode = _normalize_sampling_mode(sampling_mode, generation_style)
+    normalized_output_mode = _normalize_output_mode(output_mode)
+    if clear_generation_overrides or replace_generation_overrides:
+        _clear_sampling_settings(profile)
+        _clear_output_settings(profile)
+        profile.pop("verbosity", None)
+    if normalized_sampling_mode is not None:
+        _clear_sampling_settings(profile)
+    if normalized_output_mode is not None:
+        _clear_output_settings(profile)
+    if temperature is not None and not 0 <= float(temperature) <= 2:
+        raise ValueError("temperature 必须在 0 到 2 之间")
+    if top_p is not None and not 0 <= float(top_p) <= 1:
+        raise ValueError("top_p 必须在 0 到 1 之间")
+    if temperature is not None and top_p is not None:
+        raise ValueError("temperature 和 top_p 请选择一个进行覆盖")
+    if top_k is not None and int(top_k) < 1:
+        raise ValueError("top_k 必须大于等于 1")
+    if max_output_tokens is not None and int(max_output_tokens) < 1:
+        raise ValueError("max_output_tokens 必须大于等于 1")
+    sampling_is_default = clear_generation_overrides or normalized_sampling_mode == "provider_default"
+    if not sampling_is_default:
+        if temperature is not None:
+            profile["temperature"] = float(temperature)
+            profile.pop("top_p", None)
+            profile.pop("top_n", None)
+        if top_p is not None:
+            profile["top_p"] = float(top_p)
+            profile.pop("temperature", None)
+        if top_k is not None:
+            profile["top_k"] = int(top_k)
+        if normalized_sampling_mode in {"stable", "flexible"}:
+            if temperature is None and top_p is None:
+                profile["temperature"] = 0.2 if normalized_sampling_mode == "stable" else 0.8
+            profile["sampling_mode"] = normalized_sampling_mode
+        elif normalized_sampling_mode == "custom":
+            profile["sampling_mode"] = "custom"
+        elif any(value is not None for value in (temperature, top_p, top_k)):
+            profile["sampling_mode"] = "custom"
+
+    output_is_default = clear_generation_overrides or normalized_output_mode == "provider_default"
+    if not output_is_default and max_output_tokens is not None:
         profile["max_output_tokens"] = int(max_output_tokens)
+        profile["output_mode"] = "custom_limit"
+    elif normalized_output_mode == "custom_limit":
+        raise ValueError("output_mode 为 custom_limit 时必须提供 max_output_tokens")
+
+    if verbosity is not _UNSET and not clear_generation_overrides:
+        normalized_verbosity = _normalize_verbosity(verbosity)
+        if normalized_verbosity is None:
+            profile.pop("verbosity", None)
+        else:
+            profile["verbosity"] = normalized_verbosity
     profiles[profile_id] = profile
     save_profiles(cfg)
     return {"profile_id": profile_id, "profile": profile}
@@ -486,6 +551,10 @@ def create_profile(
     top_p: float | None = None,
     top_k: int | None = None,
     max_output_tokens: int | None = None,
+    sampling_mode: str | None = None,
+    output_mode: str | None = None,
+    generation_style: str | None = None,
+    verbosity: str | None = None,
 ) -> dict[str, Any]:
     pid = profile_id.strip()
     if not pid:
@@ -504,6 +573,10 @@ def create_profile(
     }
     if not profile["provider"]:
         raise ValueError("provider 不能为空")
+    from .providers import is_provider_registered
+
+    if not is_provider_registered(profile["provider"]):
+        raise ValueError(f"Unsupported model provider: {profile['provider']}")
     if not profile["model"]:
         raise ValueError("model_name 不能为空")
     if base_url is not None and base_url.strip():
@@ -512,14 +585,41 @@ def create_profile(
         profile["api_key_envs"] = [str(x) for x in api_key_envs if str(x).strip()]
     if base_url_envs:
         profile["base_url_envs"] = [str(x) for x in base_url_envs if str(x).strip()]
-    if temperature is not None:
-        profile["temperature"] = float(temperature)
-    if top_p is not None:
-        profile["top_p"] = float(top_p)
-    if top_k is not None:
-        profile["top_k"] = int(top_k)
-    if max_output_tokens is not None:
+    normalized_sampling_mode = _normalize_sampling_mode(sampling_mode, generation_style)
+    normalized_output_mode = _normalize_output_mode(output_mode)
+    if temperature is not None and not 0 <= float(temperature) <= 2:
+        raise ValueError("temperature 必须在 0 到 2 之间")
+    if top_p is not None and not 0 <= float(top_p) <= 1:
+        raise ValueError("top_p 必须在 0 到 1 之间")
+    if temperature is not None and top_p is not None:
+        raise ValueError("temperature 和 top_p 请选择一个进行覆盖")
+    if top_k is not None and int(top_k) < 1:
+        raise ValueError("top_k 必须大于等于 1")
+    if max_output_tokens is not None and int(max_output_tokens) < 1:
+        raise ValueError("max_output_tokens 必须大于等于 1")
+    if normalized_sampling_mode != "provider_default":
+        if temperature is not None:
+            profile["temperature"] = float(temperature)
+        if top_p is not None:
+            profile["top_p"] = float(top_p)
+        if top_k is not None:
+            profile["top_k"] = int(top_k)
+        if normalized_sampling_mode in {"stable", "flexible"}:
+            if temperature is None and top_p is None:
+                profile["temperature"] = 0.2 if normalized_sampling_mode == "stable" else 0.8
+            profile["sampling_mode"] = normalized_sampling_mode
+        elif normalized_sampling_mode == "custom":
+            profile["sampling_mode"] = "custom"
+        elif any(value is not None for value in (temperature, top_p, top_k)):
+            profile["sampling_mode"] = "custom"
+    if normalized_output_mode != "provider_default" and max_output_tokens is not None:
         profile["max_output_tokens"] = int(max_output_tokens)
+        profile["output_mode"] = "custom_limit"
+    elif normalized_output_mode == "custom_limit":
+        raise ValueError("output_mode 为 custom_limit 时必须提供 max_output_tokens")
+    normalized_verbosity = _normalize_verbosity(verbosity)
+    if normalized_verbosity is not None:
+        profile["verbosity"] = normalized_verbosity
     profiles[pid] = profile
     save_profiles(cfg)
     return {"profile_id": pid, "profile": profile}
@@ -551,6 +651,7 @@ def resolve_model_runtime(
     top_p = profile.get("top_p")
     if top_p is None:
         top_p = profile.get("top_n")
+    sampling_mode = infer_sampling_mode(profile)
     return {
         "profile_name": runtime_profile,
         "provider": resolved_provider,
@@ -559,6 +660,10 @@ def resolve_model_runtime(
         "max_output_tokens": profile.get("max_output_tokens"),
         "top_p": top_p,
         "top_k": profile.get("top_k"),
+        "sampling_mode": sampling_mode,
+        "output_mode": infer_output_mode(profile),
+        "generation_style": generation_style_for_sampling_mode(sampling_mode),
+        "verbosity": profile.get("verbosity"),
         "profile": dict(profile),
     }
 

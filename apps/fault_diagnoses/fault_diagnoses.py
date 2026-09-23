@@ -28,6 +28,8 @@ dotenv_path = PROJECT_ROOT/".env"
 load_dotenv(override=True, dotenv_path=dotenv_path)
 
 from llm import chat_reply, chat_reply_stream, profile_summary
+from backend.fault_diagnoses_agent import _should_soft_prompt_todo, _todo_soft_reminder_text
+from llm.call_tracking import format_model_call_progress
 
 #print(os.getenv("base_url"))
 
@@ -156,7 +158,7 @@ SYSTEM = f"""你是一个故障排查专家.工作在{WORKDIR}目录下，现在
 {Skill_loader.get_descriptions()}
 """
 print(f"智能体首次运行，其初始提示词为：\n{SYSTEM}\n--------------------")
-# Note: Gemini credentials are configured in `ai_gemini.py` via env vars.
+# Provider credentials are resolved from the selected model profile and environment.
 
 
 def run_bash(command: str) -> str:
@@ -419,6 +421,7 @@ Tools=[
 
 def agent_loop(messages: list):
     rounds_since_todo = 0
+    todo_reminder_added = False
     llm_count=0
     max_rounds = 30
     while llm_count < max_rounds:
@@ -427,7 +430,7 @@ def agent_loop(messages: list):
         final_tool_calls = []
         printed_tool_call_ids = set()
         llm_count+=1
-        print(f"______________________这是本次任务中大模型的第{llm_count}次调用_________________________")
+        print(f"______________________{format_model_call_progress(llm_count)}_________________________")
         # Start Gemini streaming in a background consumer thread and relay chunks via a queue
         import threading, queue
         stream = chat_reply_stream(
@@ -530,6 +533,15 @@ def agent_loop(messages: list):
             return
         results = []
         used_todo = False
+        should_soft_prompt_todo = (
+            llm_count == 1
+            and not todo_reminder_added
+            and _should_soft_prompt_todo(messages)
+            and not any(
+                str((block.get("function") or {}).get("name") or "") == "todo"
+                for block in assistant_message.get("tool_calls")
+            )
+        )
         for block in assistant_message.get("tool_calls"):
             if block.get("type") == "function":
                 #print(f"{block.get('function')}")
@@ -554,6 +566,11 @@ def agent_loop(messages: list):
                 if tool_name == "load_skills":
                     print(f"\n本次运行中，加载了技能文件，内容为{output}\n")
                 messages.append({"role": "tool", "tool_call_id": block.get("id"), "content": json.dumps(output, ensure_ascii=False, default=str)})
+        if should_soft_prompt_todo:
+            reminder_text = _todo_soft_reminder_text()
+            print(f"### 提示：{reminder_text}")
+            messages.append({"role": "user", "content": reminder_text})
+            todo_reminder_added = True
         rounds_since_todo = 0 if used_todo else rounds_since_todo + 1
         if rounds_since_todo >= 3:
             messages.append({"role":"user","content":"<reminder>请注意更新你的todo清单.</reminder>"})

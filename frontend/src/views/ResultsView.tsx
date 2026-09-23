@@ -1,6 +1,8 @@
 import type { ArtifactItem } from '../types/app'
+import { ArtifactLink } from '../components/ArtifactLink'
 
 export function ResultsView({
+  token,
   artifacts,
   filter,
   searchSessionId,
@@ -10,6 +12,7 @@ export function ResultsView({
   loading,
   error,
 }: {
+  token: string
   artifacts: ArtifactItem[]
   filter: 'all' | 'doc' | 'image' | 'data'
   searchSessionId: string
@@ -40,8 +43,8 @@ export function ResultsView({
         <ul>
           {artifacts.map((item) => (
             <li key={item.id}>
-              [{item.artifactType}] {item.name}
-              <div className="artifactPath">{item.path}</div>
+              <span className="recordTypeTag">{item.artifactType}</span>
+              <ArtifactLink token={token} artifact={item} />
             </li>
           ))}
         </ul>

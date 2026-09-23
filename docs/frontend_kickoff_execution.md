@@ -1,10 +1,14 @@
 # 前端开工执行文档（v0.1）
 
+> 状态说明（2026-09）：本文保留最初的实施顺序和交付标准。M0、M1 主链路已经落地；M2、M3 仅部分落地。下文的“交付标准”是验收目标，不等同于当前已经实现的能力。
+
 ## 1. 最小后端实现顺序（可支撑前端尽快联调）
 
 目标：先打通“登录 -> 新建 Session -> 发送消息 -> 实时展示 -> 查看结果”的主链路。
 
 ### M0（接口骨架）
+
+当前状态：✅ 已实现并接入前端。
 
 1. `POST /api/auth/login`
 2. `GET /api/me`
@@ -18,6 +22,8 @@
 - 前端可完成登录态初始化、用户角色加载、模型下拉加载、技能/工具列表展示（只读）。
 
 ### M1（Session 主链路）
+
+当前状态：✅ 已实现并接入前端。实际会话列表接口返回 `active/archived` 两组，前端再组织展示。
 
 1. `POST /api/sessions`
 2. `GET /api/sessions`
@@ -33,6 +39,8 @@
 
 ### M2（会话控制与结果中心）
 
+当前状态：🟦 部分实现。控制接口目前只更新 Session 状态，不会中断、恢复或重新启动正在执行的工作线程，因此不满足“硬暂停/继续/取消/从头重跑”的验收语义。结果中心支持按类型和 Session ID 检索及产物预览/下载，但不支持按时间检索和聚合统计。
+
 1. `POST /api/sessions/{session_id}/control`（pause/resume/cancel/rerun）
 2. `GET /api/artifacts`
 
@@ -43,9 +51,12 @@
 
 ### M3（管理能力）
 
-1. `PUT /api/skills/{skill_id}/markdown`
-2. `POST /api/tools`（管理员）
-3. `DELETE /api/tools/{tool_id}`（管理员）
+当前状态：🟦 部分实现。Skill Markdown 可覆盖保存；Tool 仅支持管理员启停。Tool 新增/删除、Skill 版本历史、统一错误码均未实现。
+
+1. `PATCH /api/skills/{skill_id}`（已实现；覆盖保存 Markdown，不创建历史版本）
+2. `PATCH /api/tools/{tool_name}`（已实现；仅支持 `{enabled: bool}`）
+3. `POST /api/tools`（未实现，管理员）
+4. `DELETE /api/tools/{tool_id}`（未实现，管理员）
 
 交付标准：
 
@@ -104,9 +115,8 @@
 
 ## 3. 开发建议（执行层）
 
-1. 先用 `docs/openapi.v0.1.yaml` 生成 TS 类型与 API Client（或手写最小 client）。
+1. 先用 `docs/openapi.v0.2.yaml` 生成 TS 类型与 API Client（或手写最小 client）。
 2. 前端数据层统一一层 `api/` 封装，禁止页面直接 fetch。
 3. 所有 Mock 数据和真实 API 响应结构保持一致，避免二次改造。
 4. SSE 采用统一事件总线（避免页面内散落监听逻辑）。
 5. 权限判断统一在路由层 + 按钮层双层处理。
-
