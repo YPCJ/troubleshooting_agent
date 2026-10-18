@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SBC SQLite 数据查看器</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, "Microsoft YaHei", sans-serif; color: #172235; background: #f3f6fa; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { background: #142846; color: white; padding: 18px 26px; display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+    header h1 { margin: 0; font-size: 21px; }
+    header small { color: #bbd3ed; }
+    .tag { border: 1px solid #68d5b5; color: #a9f1d8; border-radius: 20px; padding: 5px 10px; white-space: nowrap; font-size: 12px; }
+    .layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: calc(100vh - 75px); }
+    aside { background: white; border-right: 1px solid #dce4ed; padding: 18px 12px; }
+    aside h2 { margin: 0 8px 12px; font-size: 16px; }
+    .search { width: calc(100% - 16px); margin: 0 8px 12px; }
+    #objects { max-height: calc(100vh - 180px); overflow: auto; }
+    .object { display: block; width: 100%; border: 0; background: transparent; padding: 10px 12px; border-radius: 8px; text-align: left; color: #263b56; cursor: pointer; overflow-wrap: anywhere; }
+    .object:hover, .object.active { background: #e9f2fc; color: #0755a4; }
+    .object small { display: block; color: #6b7e96; margin-top: 3px; }
+    main { min-width: 0; padding: 22px; }
+    .card { background: white; border: 1px solid #dce4ed; border-radius: 12px; padding: 18px; margin-bottom: 18px; box-shadow: 0 2px 8px #1b365008; }
+    .card h2 { margin: 0 0 12px; font-size: 17px; }
+    .muted { color: #65768b; font-size: 13px; }
+    .status { min-height: 24px; margin-bottom: 10px; color: #a33b23; }
+    .fields { display: flex; flex-wrap: wrap; gap: 8px; }
+    .field { background: #edf3f9; border-radius: 6px; padding: 5px 8px; font-size: 12px; }
+    .field b { color: #194c84; }
+    form, .controls { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-bottom: 12px; }
+    label { display: grid; gap: 5px; font-size: 13px; color: #53677e; }
+    input, select, button { font: inherit; border-radius: 7px; border: 1px solid #c8d5e4; padding: 8px 10px; background: white; color: #172235; }
+    input:focus, select:focus { outline: 2px solid #a8c9ef; }
+    button { cursor: pointer; }
+    button.primary { background: #1769b3; border-color: #1769b3; color: white; }
+    button:disabled { opacity: .45; cursor: default; }
+    .table-wrap { overflow: auto; max-height: 53vh; border: 1px solid #dce4ed; border-radius: 7px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+    th, td { border-bottom: 1px solid #e8edf3; padding: 8px 10px; text-align: left; max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+    th { position: sticky; top: 0; background: #eef4fb; z-index: 1; }
+    tr:nth-child(even) { background: #fbfcfe; }
+    td[title] { cursor: help; }
+    .pager { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+    .chart-row { display: grid; grid-template-columns: minmax(90px, 210px) minmax(0, 1fr) 100px; gap: 10px; align-items: center; margin: 7px 0; font-size: 13px; }
+    .chart-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { height: 19px; background: #eef3f8; border-radius: 5px; overflow: hidden; }
+    .bar { height: 100%; background: #3986ca; border-radius: 5px; }
+    .bar.negative { background: #d57a58; }
+    .chart-value { text-align: right; font-variant-numeric: tabular-nums; }
+    @media (max-width: 800px) { .layout { display: block; } aside { border-right: 0; border-bottom: 1px solid #dce4ed; } #objects { max-height: 180px; } main { padding: 12px; } .chart-row { grid-template-columns: 90px minmax(0, 1fr) 75px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div><h1>SBC SQLite 数据查看器</h1><small id="database">加载中…</small></div>
+    <span class="tag">本机访问 · 只读</span>
+  </header>
+  <div class="layout">
+    <aside>
+      <h2>数据表与视图</h2>
+      <input id="objectSearch" class="search" placeholder="筛选名称" aria-label="筛选数据表">
+      <div id="objects"></div>
+    </aside>
+    <main>
+      <div id="status" class="status" role="status"></div>
+      <section class="card">
+        <h2 id="title">选择左侧数据表</h2>
+        <div id="objectInfo" class="muted"></div>
+        <div id="fields" class="fields"></div>
+      </section>
+      <section class="card">
+        <h2>数据预览</h2>
+        <form id="filterForm">
+          <label>筛选字段<select id="filterColumn"></select></label>
+          <label>包含文字<input id="filterText" placeholder="可留空"></label>
+          <label>每页<select id="pageSize"><option>25</option><option selected>50</option><option>100</option><option>200</option></select></label>
+          <button class="primary" type="submit">查询</button>
+        </form>
+        <div class="table-wrap"><table><thead id="tableHead"></thead><tbody id="tableBody"></tbody></table></div>
+        <div class="pager"><button id="prevPage">上一页</button><span id="pageInfo" class="muted">—</span><button id="nextPage">下一页</button></div>
+      </section>
+      <section class="card">
+        <h2>简单统计图</h2>
+        <div class="controls">
+          <label>分组字段<select id="chartCategory"></select></label>
+          <label>统计方式<select id="chartAggregate"><option value="count">记录数</option><option value="sum">求和</option><option value="avg">平均值</option></select></label>
+          <label>数值字段<select id="chartValue"></select></label>
+          <button id="drawChart" class="primary">绘图</button>
+        </div>
+        <div class="muted">最多显示前 20 组；统计沿用上方筛选条件。</div>
+        <div id="chart"></div>
+      </section>
+    </main>
+  </div>
+  <script>
+    const $ = id => document.getElementById(id);
+    const state = { objects: [], name: '', schema: null, page: 1, pageSize: 50, total: 0, filterColumn: '', filterText: '' };
+
+    async function api(path, params = {}) {
+      const url = new URL(path, location.origin);
+      for (const [key, value] of Object.entries(params)) url.searchParams.set(key, String(value));
+      const response = await fetch(url);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || `请求失败：${response.status}`);
+      return data;
+    }
+
+    function status(message = '') { $('status').textContent = message; }
+    function optionList(element, columns, emptyLabel = '') {
+      element.replaceChildren();
+      if (emptyLabel) element.add(new Option(emptyLabel, ''));
+      for (const column of columns) element.add(new Option(column.name, column.name));
+    }
+
+    function renderObjects() {
+      const query = $('objectSearch').value.trim().toLowerCase();
+      $('objects').replaceChildren();
+      for (const item of state.objects.filter(x => x.name.toLowerCase().includes(query))) {
+        const button = document.createElement('button');
+        button.className = 'object' + (item.name === state.name ? ' active' : '');
+        button.type = 'button';
+        button.textContent = item.name;
+        const kind = document.createElement('small');
+        kind.textContent = item.type === 'view' ? '视图' : '数据表';
+        button.append(kind);
+        button.addEventListener('click', () => selectObject(item.name));
+        $('objects').append(button);
+      }
+    }
+
+    async function selectObject(name) {
+      try {
+        status();
+        state.name = name;
+        state.page = 1;
+        state.filterColumn = '';
+        state.filterText = '';
+        $('filterText').value = '';
+        state.schema = await api('/api/schema', { name });
+        $('title').textContent = name;
+        $('objectInfo').textContent = state.schema.type === 'view' ? 'SQLite 视图' : 'SQLite 数据表';
+        $('fields').replaceChildren();
+        for (const column of state.schema.columns) {
+          const field = document.createElement('span');
+          field.className = 'field';
+          const label = document.createElement('b');
+          label.textContent = column.name;
+          field.append(label, document.createTextNode(`  ${column.type || '未声明类型'}${column.primary_key ? ' · 主键' : ''}`));
+          $('fields').append(field);
+        }
+        optionList($('filterColumn'), state.schema.columns, '不筛选');
+        optionList($('chartCategory'), state.schema.columns);
+        optionList($('chartValue'), state.schema.columns);
+        const numeric = state.schema.columns.find(x => /INT|REAL|FLOA|DOUB|NUM|DEC/i.test(x.type));
+        if (numeric) $('chartValue').value = numeric.name;
+        renderObjects();
+        await loadRows();
+        await loadChart();
+      } catch (error) { status(error.message); }
+    }
+
+    async function loadRows() {
+      if (!state.name) return;
+      try {
+        status();
+        const data = await api('/api/rows', {
+          name: state.name, page: state.page, page_size: state.pageSize,
+          filter_column: state.filterColumn, filter_text: state.filterText
+        });
+        state.total = data.total;
+        $('tableHead').replaceChildren();
+        const heading = document.createElement('tr');
+        for (const column of data.schema.columns) {
+          const th = document.createElement('th');
+          th.textContent = column.name;
+          heading.append(th);
+        }
+        $('tableHead').append(heading);
+        $('tableBody').replaceChildren();
+        for (const row of data.rows) {
+          const tr = document.createElement('tr');
+          for (const value of row) {
+            const td = document.createElement('td');
+            td.textContent = value === null ? '∅' : String(value);
+            td.title = td.textContent;
+            tr.append(td);
+          }
+          $('tableBody').append(tr);
+        }
+        if (!data.rows.length) {
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = data.schema.columns.length || 1;
+          td.textContent = '没有符合条件的数据';
+          tr.append(td);
+          $('tableBody').append(tr);
+        }
+        const start = data.total ? (data.page - 1) * data.page_size + 1 : 0;
+        const end = Math.min(data.page * data.page_size, data.total);
+        $('pageInfo').textContent = `${start}–${end} / ${data.total} 条 · 第 ${data.page} 页`;
+        $('prevPage').disabled = state.page <= 1;
+        $('nextPage').disabled = end >= data.total;
+      } catch (error) { status(error.message); }
+    }
+
+    async function loadChart() {
+      if (!state.name || !$('chartCategory').value) return;
+      try {
+        const data = await api('/api/chart', {
+          name: state.name, category: $('chartCategory').value,
+          aggregate: $('chartAggregate').value, value_column: $('chartValue').value,
+          filter_column: state.filterColumn, filter_text: state.filterText
+        });
+        $('chart').replaceChildren();
+        if (!data.items.length) { $('chart').textContent = '没有可绘制的数据'; return; }
+        const max = Math.max(1, ...data.items.map(item => Math.abs(Number(item.value) || 0)));
+        for (const item of data.items) {
+          const row = document.createElement('div'); row.className = 'chart-row';
+          const label = document.createElement('span'); label.className = 'chart-label'; label.textContent = item.label; label.title = item.label;
+          const track = document.createElement('div'); track.className = 'bar-track';
+          const bar = document.createElement('div'); bar.className = 'bar' + (Number(item.value) < 0 ? ' negative' : '');
+          bar.style.width = `${Math.max(1, Math.abs(Number(item.value) || 0) / max * 100)}%`;
+          track.append(bar);
+          const value = document.createElement('span'); value.className = 'chart-value'; value.textContent = String(item.value ?? '∅');
+          row.append(label, track, value); $('chart').append(row);
+        }
+      } catch (error) { status(error.message); }
+    }
+
+    $('objectSearch').addEventListener('input', renderObjects);
+    $('filterForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      state.page = 1;
+      state.pageSize = Number($('pageSize').value);
+      state.filterColumn = $('filterColumn').value;
+      state.filterText = $('filterText').value.trim();
+      await loadRows(); await loadChart();
+    });
+    $('prevPage').addEventListener('click', async () => { state.page--; await loadRows(); });
+    $('nextPage').addEventListener('click', async () => { state.page++; await loadRows(); });
+    $('drawChart').addEventListener('click', loadChart);
+    $('chartAggregate').addEventListener('change', () => { $('chartValue').disabled = $('chartAggregate').value === 'count'; });
+    $('chartValue').disabled = true;
+
+    (async () => {
+      try {
+        const data = await api('/api/objects');
+        $('database').textContent = data.database;
+        state.objects = data.items;
+        renderObjects();
+        if (data.items.length) await selectObject(data.items[0].name);
+      } catch (error) { status(error.message); }
+    })();
+  </script>
+</body>
+</html>
